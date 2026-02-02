@@ -1,6 +1,6 @@
-## CNR Interim Car Tracing System
+## CNR Traffic Master Plan & Interim Car Tracing System
 
-In the mid 1960s, the Canadian National Railway decided to implement an IBM System 360-based system to track where all of their freight cars were. It built upon their previous system that used stacks of punch cards to enter car movements into the system, expanding it to allow agents at CNR offices to directly query the current status, rather than waiting until they could get the daily report.
+In the mid 1960s, the Canadian National Railway decided to implement an IBM System 360-based system to track where all of their freight cars were. It built upon their previous Traffic Master Plan system that used stacks of punch cards to enter car movements into the system, expanding it to allow agents at CNR offices to directly query the current status, rather than waiting until they could get the daily report.
 
 This is a Python reimplementation of that system, starting first with the reporting side, and eventually expanding to include the Traffic Master Plan card-based entry system.
 
