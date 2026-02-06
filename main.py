@@ -1,6 +1,8 @@
 import configparser, os, sys, sqlite3, time
+from datetime import datetime,UTC
+from classes import FileCar
 
-def pad(num,spaces):
+def frontpad(num,spaces):
     if type(num) == str:
         tnum = num
         while len(tnum)<spaces:
@@ -10,6 +12,39 @@ def pad(num,spaces):
         while len(tnum)<spaces:
             tnum = "0" + tnum
     return tnum
+
+def backpad(num,spaces):
+    if type(num) == str:
+        tnum = num
+        while len(tnum)<spaces:
+            tnum += " "
+    else:
+        tnum = str(num)
+        while len(tnum)<spaces:
+            tnum += "0"
+    return tnum
+
+def getcars(loc,cur):
+    findq = "SELECT Initial, Number, LoadedOrEmpty, DestinationStation FROM LastLocationComplete WHERE StationNumber = %s;" % (loc)
+    cur.execute(findq)
+    results = cur.fetchall()
+    outlst = []
+    for result in results:
+        outlst.append(FileCar(result[0],result[1],result[2],result[3]))
+    return outlst
+
+def getdattuple():
+    now = datetime.now(UTC)
+    formatted_time = now.strftime(r"%d%H%M")
+    return (int(formatted_time[0:2]),int(formatted_time[2:4])) # probably there's another way to do this, but w/e
+
+def cleantraces(cur):
+    getdelqs = "SELECT * FROM TracesToDelete;"
+    cur.execute(getdelqs)
+    results = cur.fetchall()
+    for row in results:
+        delq = "DELETE FROM Tracefile WHERE Initials = '%s' AND Number = %s AND Day = %s AND Time = %s;" % row
+        cur.execute(delq)
 
 def clear_screen():
     # Check the operating system name
@@ -73,9 +108,9 @@ def parse_n_route_string(string,curs,conn):
     for result in rawcore:
         car = str(result[0]) + str(result[1])
         if str(result[10]) == 'None' or rq in ['1','3']: # empty, abbreviated
-            record = '%s%s %s/%s %s%s' % (result[2],result[3],pad(result[4],2),pad(result[5],4),pad(str(result[6]),4),result[7])
+            record = '%s%s %s/%s %s%s' % (result[2],result[3],frontpad(result[4],2),frontpad(result[5],4),frontpad(str(result[6]),4),result[7])
         else:
-            fullrecord = [result[2],result[3],pad(result[4],2),pad(result[5],4),pad(str(result[6]),4)]
+            fullrecord = [result[2],result[3],frontpad(result[4],2),frontpad(result[5],4),frontpad(str(result[6]),4)]
             fullrecord.extend((result[7:]))
             record = '%s%s %s/%s %s%s %s%s%s%s %s %s%s%s %s' % tuple(fullrecord)
         outputs[car].append(record)

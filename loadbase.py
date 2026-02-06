@@ -1,21 +1,11 @@
 # this script loads an ODS file into a database for use by my implementation of CNR's ICTS/TMP
 
 import pyexcel_odsr as ods, sys, sqlite3
-from datetime import datetime,UTC
 from random import randint, choice
 from tqdm import tqdm
-
-
-def pad(num,spaces):
-    if type(num) == str:
-        tnum = num
-        while len(tnum)<spaces:
-            tnum += " "
-    else:
-        tnum = str(num)
-        while len(tnum)<spaces:
-            tnum = "0" + tnum
-    return tnum
+from main import getdattuple, cleantraces, getcars
+from classes import Station, Car, Train
+from dispatch import runDay
 
 # variables/constants
 basebook = sys.argv[1]
@@ -33,102 +23,9 @@ if randconf.upper()[0] == 'Y':
     else:
         routenum = 0
 
-# helper classes. Maybe move these elsewhere someday. Could probably be refactored.
-class Station:
-    def __init__(self, header, data):
-        order = ["number", "code", "interchangedrailway", "name", "railway", "interchange"]
-        values = []
-        for col in order:
-            for x in range(0,len(header)):
-                if header[x] == col:
-                    values.append(data[x])
-                    break
-        self.number, self.code, self.interrrwy, self.name, self.railway, self.interstat = values
-    def getq(self):
-        insq = "INSERT INTO stations VALUES (%s,'%s','%s','%s','%s',%s);" % (self.number,self.code,self.interrrwy,self.name,self.railway,self.interstat)
-        return insq
-
-class Car:
-    def __init__(self, header, data):
-        order = ["Initial","Number","Type","Grade"]
-        values = []
-        for col in order:
-            for x in range(0,len(header)):
-                if header[x] == col:
-                    values.append(data[x])
-                    break
-        self.Initial, self.Number,self.Type,self.Grade = values
-    def getq(self):
-        insq = "INSERT INTO Carfile VALUES ('%s',%s,'%s','%s');" % (pad(self.Initial,4), self.Number,self.Type,self.Grade)
-        return insq
-    
-class FileCar:
-    def __init__(self,initial,number,lore,curdest):
-        self.number = number
-        self.initial = initial
-        self.lore = lore
-        self.curdest = curdest
-    def removewaybill(self,cur): # someday this should be date sensitive
-        delq = "DELETE FROM Waybillfile WHERE Initial = '%s' AND Number = %s;" % (self.initial, self.number)
-        cur.execute(delq)
-        self.curdest = 0
-    def genwaybill(self,consign,start,end,cargo,day,time,cur):
-        wayq = "INSERT INTO Waybillfile (Initial, Number, Consignee, Contents, Destination, OriginStation, Day, Time) VALUES ('%s',%s,'%s','%s',%s,%s,%s,%s);" % \
-                (self.initial,self.number,consign,cargo,start,end,day,time)
-        cur.execute(wayq)
-        self.curdest = end
-    def gentrace(self,aord,loc,day,time,trnum,lore,cur): # we will want to delete old traces at some point
-        traceq = "INSERT INTO Tracefile VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
-        try:
-            cur.execute(traceq)
-            self.lore = lore
-        except sqlite3.IntegrityError: # we looped around months and had a problem
-            pass
-
-
-class Train:
-    def __init__(self, number, route):
-        self.curpos = randint(0,len(route) - 1)
-        self.route = route
-        self.number = number
-    def move(self):
-        if self.curpos == len(self.route) -1:
-            self.curpos = 0
-            return 0
-        else:
-            self.curpos += 1
-            return self.route[self.curpos]
-    def location(self):
-        return self.route[self.curpos]
-
-# helper functions
-def cleantraces(cur):
-    getdelqs = "SELECT * FROM TracesToDelete;"
-    cur.execute(getdelqs)
-    results = cur.fetchall()
-    for row in results:
-        delq = "DELETE FROM Tracefile WHERE Initials = '%s' AND Number = %s AND Day = %s AND Time = %s;" % row
-        cur.execute(delq)
-
-
-def getcars(loc,cur):
-    findq = "SELECT Initial, Number, LoadedOrEmpty, DestinationStation FROM LastLocationComplete WHERE StationNumber = %s;" % (loc)
-    cur.execute(findq)
-    results = cur.fetchall()
-    outlst = []
-    for result in results:
-        outlst.append(FileCar(result[0],result[1],result[2],result[3]))
-    return outlst
-
-
-def timestmp():
-    now = datetime.now(UTC)
-    formatted_time = now.strftime(r"%d%H%M")
-    return (int(formatted_time[0:2]),int(formatted_time[2:4])) # probably there's another way to do this, but w/e
-
 # the script
 
-if conf.upper()[0] != 'Y':
+if conf.upper()[0] != 'Y': # the user doesn't want to wipe the DB
     exit()
 else:
     with open(db,'w') as f:
@@ -143,6 +40,7 @@ with open(schema,"r") as f:
 cur.executescript(q) # set up the DB
 conn.commit() # write it
 
+# fetch the spreadsheet
 data = ods.get_data(basebook)
 
 # load stations
@@ -186,7 +84,7 @@ if randconf.upper()[0] != 'Y':
     exit()
 
 # get date range
-endd, endt = timestmp()
+endd, endt = getdattuple()
 startd = endd - 5 - routenum # 15 days seems about right
 
 # get stations
@@ -243,27 +141,7 @@ if routeconf:
         num = int(train[0])
         trains.append(Train(num,route))
     for x in tqdm(range(0,routenum)):
-        for train in trains:
-            loc = train.location()
-            cars = getcars(loc,cur) # returns FileCars
-            result = train.move()
-            if result != 0:
-                traintime = randint(0,2400)
-                trainday = startd + x
-                while trainday < 1:
-                    trainday += 30
-                for car in cars:
-                    if result == car.curdest:
-                        lore = 'E'
-                        car.gentrace('A',result,trainday,leavet + 198, train.number, lore,cur)
-                    elif randint(0,10) > 8: # 10% chance to generate a new waybill. The examples in the manual show nonsensical waybilling as well.
-                        car.removewaybill(cur) # not necessary later
-                        lore = 'L'
-                        leavet = randint(0,2200)
-                        car.genwaybill("SMONE, LLC",loc,choice(allroute),"SOMCGO",trainday-1,leavet,cur) # not clever date
-                        car.gentrace('D',loc,trainday - 1,leavet + 198, train.number, lore,cur)
-                        car.gentrace('A',result,trainday,traintime, train.number, lore,cur)
-                    elif randint(0,10) > 5: # should be a 40% chance
-                        car.gentrace('A',result,trainday,traintime, train.number,car.lore,cur)
-        cleantraces(cur)
-        conn.commit()
+        trainday = startd + x
+        runDay(trains,conn,cur,trainday,allroute)
+
+conn.close() # seems a little superstitious to do this.
