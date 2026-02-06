@@ -23,7 +23,7 @@ def clear_screen():
 def lookuproads(selcode,curs):
     # if this ever becomes productionized, probably this should be an actual DB lookup. For now, it's hardcoded.
     if selcode == '1': # CN
-        return "= 'CN'"
+        return "LIKE 'CN%'"
     elif selcode == '2': # CGTX
         return "= 'CGTX'"
     elif selcode == '3': # CP
@@ -31,14 +31,14 @@ def lookuproads(selcode,curs):
     elif selcode == '4': # UTLX
         return "= 'UTLX'"
     elif selcode == '8': # Other Foreign
-        return "NOT IN ('CN','CGTX','CP','UTLX')"
+        return "NOT IN ('CGTX','CP','UTLX') AND NOT LIKE 'CN%'"
     elif selcode == '9': # All Foreign
-        return "NOT IN ('CN')" # probably could be strict equality, but I'm not sure how GTW/CVR is handled.
+        return "NOT LIKE 'CN%'" # probably could be strict equality, but I'm not sure how GTW/CVR is handled.
     else:
         raise Exception
 
 def parse_n_route_string(string,curs,conn):
-    if len(string) != 8:
+    if len(string) < 3 or len(string) > 8: # we accept single-digit car numbers
         return "usage: script.py RINNNNNN"
     
     # helpful constants and variables

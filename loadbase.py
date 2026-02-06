@@ -1,12 +1,29 @@
 # this script loads an ODS file into a database for use by my implementation of CNR's ICTS/TMP
 
 import pyexcel_odsr as ods, sys, sqlite3
-from main import pad
+from datetime import datetime,UTC
+from random import randint, choice
+
+
+def pad(num,spaces):
+    if type(num) == str:
+        tnum = num
+        while len(tnum)<spaces:
+            tnum += " "
+    else:
+        tnum = str(num)
+        while len(tnum)<spaces:
+            tnum = "0" + tnum
+    return tnum
 
 # variables/constants
 basebook = sys.argv[1]
 db = "db.sqlite3"
 schema = "db.sqlite3-Schema.sql"
+
+# confirmations
+conf = input("This will wipe out %s. Continue? " % db)
+randconf = input("Randomize car locations once loaded? ")
 
 # helper classes. Maybe move these elsewhere someday. Could probably be refactored.
 class Station:
@@ -37,7 +54,14 @@ class Car:
         insq = "INSERT INTO Carfile VALUES ('%s',%s,'%s','%s');" % (pad(self.Initial,4), self.Number,self.Type,self.Grade)
         return insq
 
-conf = input("This will wipe out %s. Continue? " % db)
+# helper functions
+def timestmp():
+    now = datetime.now(UTC)
+    formatted_time = now.strftime(r"%d%H%M")
+    return (int(formatted_time[0:2]),int(formatted_time[2:4])) # probably there's another way to do this, but w/e
+
+# the script
+
 if conf.upper()[0] != 'Y':
     exit()
 else:
@@ -86,5 +110,55 @@ for car in rawcars:
 
 for car in carsqs:
     cur.execute(car)
+
+conn.commit()
+
+# randomize if user asked us to
+if randconf.upper()[0] != 'Y':
+    exit()
+
+# get date range
+endd, endt = timestmp()
+startd = endd - 5 # 5 days seems about right
+
+# get stations
+statq = "SELECT number FROM stations;"
+cur.execute(statq)
+rawstats = cur.fetchall()
+
+# get cars
+carq = "SELECT Initial, Number FROM Carfile;"
+cur.execute(carq)
+rawcars = cur.fetchall()
+
+# variables & constants
+traces = []
+ad = ('A','D')
+le = ('L','E')
+trains = (401,405,402,406,225,226) # these will have to be localized later. Right now I need a lot of data.
+
+for car in rawcars:
+    num2do = randint(1,4)
+    for x in range(0,num2do):
+        newstat = choice(rawstats)[0]
+        aord = choice(ad)
+        lore = choice(le)
+        day = randint(startd,endd)
+        trn = choice(trains)
+        if day == endd:
+            tim = randint(0,endt)
+        else:
+            tim = randint(0,2400)
+        value = "('%s',%s,'%s',%s,%s,%s,%s,'%s')" % (car[0],car[1],aord,newstat,day,tim,trn,lore)
+        traces.append(value)
+
+traceq = "INSERT INTO Tracefile VALUES "
+
+for x in traces:
+    try:
+        tq = traceq + x + ";"
+        cur.execute(tq)
+    except sqlite3.IntegrityError: # we accidentally a duplicate
+        pass
 
 conn.commit()
