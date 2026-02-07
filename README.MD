@@ -4,6 +4,11 @@ In the mid 1960s, the Canadian National Railway decided to implement an IBM Syst
 
 This is a Python reimplementation of that system, starting first with the reporting side, and eventually expanding to include the Traffic Master Plan card-based entry system.
 
+### Progress
+Here is a diagram of the overall system with highlights for the current progress.
+![diagram of CNR Traffic Master Plan](https://github.com/coneypylon/TMPy/blob/main/TMP-progress.png?raw=true)
+
+### Running/Testing
 If you want to try this, use the included "ICTS" SQL file to set up a DB, make sure that main.py points at it, and try some of the following commands:
 
 python main.py 12123456
