@@ -3,8 +3,7 @@
 import pyexcel_odsr as ods, sys, sqlite3
 from random import randint, choice
 from tqdm import tqdm
-from main import getdattuple, cleantraces, getcars
-from classes import Station, Car, Train
+from helpers import Station, Car, Train, getdattuple
 from dispatch import runDay
 
 # variables/constants
@@ -129,7 +128,7 @@ for x in traces:
 
 conn.commit()
 
-allroute = []
+allroute = [] # eventually needs to be some demand spreadsheet.
 
 if routeconf:
     startd = endd - routenum
