@@ -5,6 +5,7 @@ CREATE TABLE "Carfile" (
 	"Number"	INTEGER,
 	"Type"	TEXT,
 	"Grade"	TEXT,
+	"Tare"	INTEGER,
 	PRIMARY KEY("Initial","Number")
 );
 DROP TABLE IF EXISTS "ExceptionFile";
@@ -38,6 +39,8 @@ CREATE TABLE "Waybillfile" (
 	"Number"	INTEGER NOT NULL,
 	"Consignee"	TEXT NOT NULL,
 	"Contents"	TEXT,
+	"CommodityCode"	INTEGER,
+	"Tonnage"	INTEGER,
 	"Destination"	INTEGER NOT NULL,
 	"OffJunction"	TEXT DEFAULT ' ',
 	"OriginStation"	INTEGER NOT NULL,
@@ -111,6 +114,44 @@ CREATE VIEW CanonicalExceptions AS SELECT Initial, Number, Text FROM
 	) as rn
 FROM ExceptionFile)
 WHERE rn <= 3 ORDER BY Initial ASC, Number ASC;
+DROP VIEW IF EXISTS "CarControlFile";
+CREATE VIEW CarControlFile AS WITH LatestTraces AS (
+    SELECT 
+        rowid AS original_id, -- Explicitly carry the ID forward
+        *, 
+        ROW_NUMBER() OVER (
+            PARTITION BY Initials, Number
+            ORDER BY Day DESC, Time DESC
+        ) as rn
+    FROM Tracefile
+),
+WaybillEvents AS (
+    SELECT 
+        w.ID, w.Initial, w.Number,
+		ROW_NUMBER() OVER (
+            PARTITION BY Initial, Number 
+            ORDER BY Day DESC, Time DESC
+        ) as waybill_rn
+    FROM Waybillfile w
+	ORDER BY Day DESC
+)
+SELECT 
+    c.Grade, c.Type, SUBSTR(s.name, 1, 8) AS "FinalDestination", w.Destination AS "DestinationStation", w.OffJunction AS "Off-GoingJunction", w.OriginStation, w.OnJunction AS "OnComingJunction",
+	w.CommodityCode, w.Consignee, w.Contents, c.Tare, w.Tonnage, w.ID as Waybill
+FROM LatestTraces AS t
+JOIN Carfile AS c
+    ON t.Initials = c.Initial
+    AND t.Number = c.Number
+LEFT JOIN WaybillEvents we
+    ON t.Initials = we.Initial
+	AND t.Number = we.Number
+	AND waybill_rn = 1
+LEFT JOIN Waybillfile AS w
+    ON we.ID = w.ID
+LEFT JOIN stations AS s
+    ON w.Destination = s.number
+WHERE t.rn = 1 
+ORDER BY OriginStation DESC, c.Initial ASC, c.Number ASC;
 DROP VIEW IF EXISTS "LastLocationComplete";
 CREATE VIEW LastLocationComplete AS WITH LatestTraces AS (
     SELECT 
@@ -198,4 +239,42 @@ ORDER BY c.Initial ASC, c.Number ASC, t.Day ASC, t.Time ASC;
 DROP VIEW IF EXISTS "StatusLine";
 CREATE VIEW StatusLine AS
 SELECT Number, Initial, strftime('%d', 'now', 'localtime') as Day, strftime('%H%M', 'now', 'localtime') as Time FROM Carfile ORDER BY Initial ASC, Number ASC;
+DROP VIEW IF EXISTS "TracesToDelete";
+CREATE VIEW TracesToDelete AS WITH LatestTraces AS (
+    SELECT 
+        rowid AS original_id, -- Explicitly carry the ID forward
+        *, 
+        ROW_NUMBER() OVER (
+            PARTITION BY Initials, Number
+            ORDER BY Day DESC, Time DESC
+        ) as rn
+    FROM Tracefile
+),
+WaybillEvents AS (
+    SELECT 
+        w.rowid AS wb_rowid,
+        (SELECT t2.rowid 
+         FROM Tracefile t2
+         WHERE t2.Initials = w.Initial 
+           AND t2.Number = w.Number
+           AND (t2.Day > w.Day OR (t2.Day = w.Day AND t2.Time >= w.Time))
+         ORDER BY t2.Day ASC, t2.Time ASC
+         LIMIT 1) AS first_trace_match_id
+    FROM Waybillfile w
+)
+SELECT 
+    c.Initial, c.Number,
+     t.Day, t.Time
+FROM LatestTraces AS t
+JOIN Carfile AS c
+    ON t.Initials = c.Initial
+    AND t.Number = c.Number
+LEFT JOIN WaybillEvents we
+    ON t.original_id = we.first_trace_match_id
+LEFT JOIN Waybillfile AS w
+    ON we.wb_rowid = w.rowid
+LEFT JOIN stations AS s
+    ON w.Destination = s.number
+WHERE t.rn > 4 
+ORDER BY c.Initial ASC, c.Number ASC, t.Day ASC, t.Time ASC;
 COMMIT;

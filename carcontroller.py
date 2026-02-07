@@ -4,144 +4,10 @@ Possibly actually useful someday.
 Loosely corresponds to CN Car Control from ~1967
 '''
 
-from random import randint
+from helpers import carcard, trainjournal, Station, Car, FileCar, frontpad
+import configparser, sqlite3
 
-def pad(num,spaces):
-    tnum = str(num)
-    while len(tnum)<spaces:
-        tnum = "0" + tnum
-    return tnum
-
-class consist:
-    def __str__(self):
-        return "G%s%s%s%s " % (self.infoslug,self.locslug,self.contentslug,self.journalslug)
-    
-
-class car(consist):
-    def __init__(self,initials,number,condition,type,destination,block,zone,onlinedest,delto,onlineorig,recfrom,commoditycode,consignee,contents,taretons,nettons,waybillnum,journalnum):
-        self.railroad = initials
-        self.number = number
-        self.registration = initials + number
-        self.condition = condition
-        self.type = type
-        self.infoslug = self.registration + condition + type
-        self.destination = destination
-        self.destblock = block
-        self.destzone = zone
-        self.onlinedest = onlinedest
-        self.delto = delto
-        self.onlineorig = onlineorig
-        self.recfrom = recfrom
-        self.locslug = destination + block + zone + onlinedest + delto + onlineorig + recfrom
-        self.commodity = commoditycode
-        self.consignee = consignee
-        self.contents = contents
-        self.tare = taretons
-        self.tonnage = nettons
-        if int(self.tonnage) > 0:
-            self.isloaded = True
-        else:
-            self.isloaded = False
-        self.contentslug = commoditycode + "   " + consignee + contents + taretons + nettons
-        self.billnum = waybillnum
-        self.journalvers = journalnum
-        self.journalslug = waybillnum + journalnum
-
-class trailer(consist):
-    def __init__(self,initials,number,condition,type,carryingcar,trailerOwner,nettons,journalnum):
-        self.railroad = initials
-        self.number = number
-        self.registration = initials + number
-        self.condition = condition
-        self.type = type
-        self.infoslug = self.registration + condition + type
-        self.destination = carryingcar + "  "
-        self.destblock = "  "
-        self.destzone = "  "
-        self.onlinedest = "     "
-        self.delto = " "
-        self.onlineorig = "     "
-        self.recfrom = " "
-        self.locslug = self.destination + self.destblock + self.destzone + self.onlinedest + self.delto + self.onlineorig + self.recfrom
-        self.commodity = "          "
-        self.consignee = trailerOwner
-        self.contents = "      "
-        self.tare = "05"
-        self.tonnage = nettons
-        self.contentslug = self.commodity + self.consignee + self.contents + self.tare + nettons
-        self.billnum = "-     "
-        self.journalvers = journalnum # this is supposed to be some global magic number
-        self.journalslug = self.billnum + journalnum
-
-class trainjournal:
-    def __init__(self, trainNumber, stationFrom, stationTo, cars, orderTime, departureTimeStamp,leadcode,callletters,number=0,open=True):
-        self.trainNumber=trainNumber
-        self.fr = stationFrom
-        self.to = stationTo
-        if number == 0:
-            self.number = str(randint(10000,99999)) # eventually a select from a DB
-        else:
-            self.number = str(number)
-        self.carconsist = cars
-        self.loads = 0
-        self.empties = 0
-        self.tonnage = 0
-        for car in self.carconsist:
-            if car.isloaded:
-                self.loads += 1
-            else:
-                self.empties += 1
-            self.tonnage += int(car.tonnage)
-        self.orderTime = orderTime
-        self.departure = departureTimeStamp # presumption is that the train is departing AND being created
-        self.units = [] # presumption is that the train is departing AND being created. Weirdly, the manual doesn't proscribe assigning units other than the lead
-        self.lead = leadcode
-        self.callletters = callletters # no idea how to generate
-        self.open = open
-        self.exceptions = dict()
-    def cardformat(self,type):
-        cardstack = []
-        if type == 'D':
-            selector = "#somekindofcodeshre*                                                            "
-            addresses = "H Some kind of address goes here but I have no idea what it be  *               "
-            departure = "D%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (self.trainNumber,self.fr,self.to,pad(self.loads,3),pad(self.empties,3),self.orderTime,self.departure,pad(self.tonnage,5),self.lead,self.callletters,self.number)
-            carlst = list(map(str,self.carconsist))
-            exceptlst = []
-            usedkeys = []
-            for x in self.exceptions.values():
-                exceptlst.extend(x)
-            endoftrain = "H End of Train@@@@@@@@@@*                                                       "
-            endoftransmission = "P END OF TRANSMISSION%%@@@@@@@@@@#SelectionCodesGoHereForMyOffice*              "
-            cardstack = [selector,addresses,departure]
-            cardstack.extend(carlst)
-            cardstack.extend(exceptlst)
-            cardstack.append(endoftrain)
-            cardstack.append(endoftransmission)
-        return cardstack
-    def write(self,filename,type):
-        cardstack = self.cardformat(type)
-        with open(filename,"w") as f:
-            for card in cardstack:
-                f.write(f"{card}\n")
-    def addexception(self,exception,format="text"):
-        if format == "text":
-            if exception[1] != ' ': # it's for a car
-                key = exception[1:11]
-            else: # eventually we probably want to have these, but they seem superfluous to my initial view.
-                return
-                #key = exception[2:14]
-            if key not in self.exceptions.keys():
-                self.exceptions[key] = [exception]
-            else:
-                self.exceptions[key].append(exception)
-    def __str__(self):
-        if self.open:
-            ostatus = "OPEN"
-        else:
-            ostatus = "CLOSED"
-        return "[%s] Journal %s for train %s from %s to %s with %s loads and %s empties." % (ostatus,self.number,self.trainNumber,self.fr,self.to,self.loads,self.empties)
-
-def loadJournal(filename):
+def loadJournal(filename,curs):
     fr = ''
     to = ''
     trainnum = ''
@@ -163,10 +29,10 @@ def loadJournal(filename):
                     ordert = card[25:29]
                     dept = card[48:56]
                     leadunit = card[62:66]
-                fr = card[5:10]
-                to = card[10:15]
+                fr = Station(int(card[5:10]),curs)
+                to = Station(int(card[10:15]),curs)
             elif card[0] == "G":
-                cardcar = car(card[1:5],card[5:11],card[11],card[12:14],card[14:22],card[22:24],card[24:26],card[26:31],card[31],card[32:37],card[37],card[38:45],card[48:58],card[58:64],card[64:66],card[66:68],card[68:74],card[74:79])
+                cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=card[26:31],delto=card[31],onlineorig=card[32:37],recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=card[64:66],nettons=card[66:68],waybillnum=card[68:74])
                 consists.append(cardcar)
             elif card[0] == "H":
                 exceptions.append(card)
@@ -176,9 +42,92 @@ def loadJournal(filename):
     return out
 
 
+def interactivejournal(jnum,arrival: bool,conn):
+    curs = conn.cursor()
+
+    # things we need to figure out from the user in some way:
+    tnum = input("Enter train number: ")
+    startstat = 0
+    endstat = 0
+    month = frontpad(input("Enter month #: "),2)
+    day = input("Enter date: ")
+    time = input("Enter time of report: ")
+    otime = input("Enter order time: ")
+    lead = input("Enter lead unit #: ")
+    callcode = input("Enter call code: ")
+    cars = []
+
+    # computed entries
+    empties = 0
+    loads = 0
+    tons = 0
+
+    while startstat == 0: # we will do some error checking
+        snum = input("Enter From Station: ")
+        try:
+            startstat = Station(snum,curs)
+        except Exception as e:
+            print(str(e))
+    while endstat == 0: # we will do some error checking
+        snum = input("Enter To Station: ")
+        try:
+            endstat = Station(snum,curs)
+        except Exception as e:
+            print(str(e))
+    
+    while True:
+        initial = input("Enter car initials (e.g. 'CNR'): ")
+        number = int(input("Enter car number: "))
+        try:
+            foundcar = Car(initial,number,curs)
+            cars.append(foundcar) # probably we should confirm adding the car as-is
+        except KeyError: # we didn't find a car
+            pass
+            cond = input("Enter car condition: ")
+            typ = input("Enter car type")
+            tare = input("Enter the tare weight of the car: ")
+            waybillnum = input("Enter waybill number: ")
+            commodity = input("Enter commodity code: ") # probably should be a lookup
+            contents = input("Enter content text")
+            consignee = input("Enter consignee: ")
+            tonnage = input("Enter tonnage of %s: ") % contents
+            onlineorig = Station(int(input("Enter origin code: ")))
+            recfrom = input("Enter on-coming junction: ")
+            onlinedest = Station(int(input("Enter destination code: "))) # likely we will have to eventually put a separate destination
+            delto = input("Enter off-going junction: ")
+            desttext = onlinedest.name
+            block = input("Enter block number: ")
+            zone = '  '
+
+            card = carcard(initial,number,cond,typ,desttext,block,onlinedest.number,onlineorig.number,tare,zone,delto,recfrom,commodity,consignee,contents,tonnage,waybillnum)
+            inst = input("Insert into Carfile? ")
+            if inst[0].upper() == 'Y' and arrival:
+                fcar = card.genFileCar()
+                fcar.addtofile(tare,curs)
+                fcar.gentrace('A',endstat,day,time,tnum,'L',curs)
+            elif inst[0].upper() == 'Y':
+                card.genFileCar().gentrace('D',endstat,day,time,tnum,'L',curs)
+
+        cont = input("Added %s. Add another car? " % foundcar.registration)
+        if cont.upper()[0] != 'Y':
+            break
+
+    return trainjournal(tnum,startstat,endstat,cars,otime,time,lead,callcode,jnum)
+
+
 if __name__=="__main__":
     unattachedConsists = dict()
     loadedJournals = dict()
+
+    # DB setup
+    # fetch the config
+    config = configparser.ConfigParser()
+    config.read("reservations.ini")
+    db = config.get('DEFAULT','db', fallback='db.sqlite3')
+    
+    # set up the db connection
+    conn = sqlite3.connect(db)
+
     while True:
         if len(loadedJournals.values()) > 0:
             print("Loaded Journals: ")
@@ -192,22 +141,27 @@ if __name__=="__main__":
         choice = input("Please select an option: ")[0].lower()
         if choice == "l":
             fname = input("Please enter filename: ")
-            tjournal = loadJournal(fname)
+            tjournal = loadJournal(fname,conn.cursor())
             loadedJournals[tjournal.number] = tjournal
         elif choice == "w":
             wjournal = input("Enter a journal number: ")
-            typ = input("What kind of deck to write? Available options are (D). ").upper()
-            fname = input("What filename to use? ")
-            if "." not in fname:
-                fname += ".t80"
-            loadedJournals[wjournal].write(type=typ,filename=fname)
+            try:
+                test = loadedJournals[wjournal]
+                typ = input("What kind of deck to write? Available options are (D). ").upper()
+                fname = input("What filename to use? ")
+                if "." not in fname:
+                    fname += ".t80"
+                loadedJournals[wjournal].write(type=typ,filename=fname)
+            except KeyError: # the journal doesn't exist/hasn't been made
+                print("No such journal has been loaded.")
+        elif choice == "a":
+            wjournal = input("Enter a journal number: ")
+            loadedJournals[wjournal] = interactivejournal(wjournal,True,conn)
+        elif choice == "d":
+            wjournal = input("Enter a journal number: ")
+            loadedJournals[wjournal] = interactivejournal(wjournal,False,conn)
         elif choice == "o":
-            railroad = ''
-            number = ''
-            condition = ''
-            typ = ''
-            finalDest = ''
-            block = ''
-            zone = ''
-            onLineDest = ''
-            
+            initial = input("Enter railroad initials: ")
+            number = input("Enter car number: ")
+            tare = int(input("Enter tare weight of car: "))
+            nucar = FileCar(initial,number,'E',tare=tare).addtofile(conn.cursor())

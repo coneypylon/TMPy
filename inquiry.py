@@ -26,8 +26,6 @@ def parse_n_route_string(string,curs,conn):
     statusq = "SELECT * FROM StatusLine WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
     exceptionsq = "SELECT * FROM CanonicalExceptions WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
 
-    #print((statusq,mainq,exceptionsq))
-
     # request them
     curs.execute(statusq)
     rawstatus = curs.fetchall()

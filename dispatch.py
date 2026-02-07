@@ -22,7 +22,7 @@ def runDay(trains,conn, cur, trainday,allroute):
                     car.removewaybill(cur) # not necessary later
                     lore = 'L'
                     leavet = randint(0,2200)
-                    car.genwaybill("SMONE, LLC",loc,choice(allroute),"SOMCGO",trainday-1,leavet,cur) # not clever date
+                    car.genwaybill("SMONE, LLC",loc,choice(allroute),"SOMCGO",trainday-1,leavet,1234567,cur) # not clever date
                     car.gentrace('D',loc,trainday - 1,leavet + 198, train.number, lore,cur)
                     car.gentrace('A',result,trainday,traintime, train.number, lore,cur)
                 elif randint(0,10) > 5: # should be a 40% chance

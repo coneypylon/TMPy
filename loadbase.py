@@ -3,7 +3,7 @@
 import pyexcel_odsr as ods, sys, sqlite3
 from random import randint, choice
 from tqdm import tqdm
-from helpers import Station, Car, Train, getdattuple
+from helpers import NewStation, NewCar, Train, getdattuple
 from dispatch import runDay
 
 # variables/constants
@@ -51,9 +51,9 @@ stationsqs = []
 for station in rawstations:
     if station == []:
         break # end of file
-    ts = Station(stationheader,station)
+    ts = NewStation(stationheader,station)
     stations.append(ts)
-    stationsqs.append(ts.getq())
+    stationsqs.append(ts.insertq())
 
 
 for station in stationsqs:
@@ -68,7 +68,7 @@ cars = []
 carsqs = []
 
 for car in rawcars:
-    ts = Car(carheader,car)
+    ts = NewCar(carheader,car)
     cars.append(ts)
     carsqs.append(ts.getq())
 
