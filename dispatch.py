@@ -2,7 +2,7 @@
 # probably eventually this is replaced by a UI with some people, or some (non-LLM) AI in a game
 # if that's the case, this is an automated test suite/setup library
 
-from main import cleantraces, getcars
+from helpers import cleantraces, getcars
 from random import randint, choice
 
 def runDay(trains,conn, cur, trainday,allroute):
