@@ -33,6 +33,7 @@ CREATE TABLE "Tracefile" (
 );
 DROP TABLE IF EXISTS "Waybillfile";
 CREATE TABLE "Waybillfile" (
+	"ID"	INTEGER PRIMARY KEY,
 	"Initial"	TEXT NOT NULL,
 	"Number"	INTEGER NOT NULL,
 	"Consignee"	TEXT NOT NULL,
@@ -43,7 +44,6 @@ CREATE TABLE "Waybillfile" (
 	"OnJunction"	TEXT DEFAULT ' ',
 	"Day"	INTEGER,
 	"Time"	INTEGER,
-	PRIMARY KEY("Initial","Number","Consignee"),
 	FOREIGN KEY("Destination") REFERENCES "stations"("number"),
 	FOREIGN KEY("Initial","Number") REFERENCES "Carfile",
 	FOREIGN KEY("OriginStation") REFERENCES "stations"("number")
