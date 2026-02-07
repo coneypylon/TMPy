@@ -100,13 +100,15 @@ def interactivejournal(jnum,arrival: bool,conn):
             zone = '  '
 
             card = carcard(initial,number,cond,typ,desttext,block,onlinedest.number,onlineorig.number,tare,zone,delto,recfrom,commodity,consignee,contents,tonnage,waybillnum)
-            inst = input("Insert into Carfile? ")
+            inst = input("Insert directly into Carfile? ")
             if inst[0].upper() == 'Y' and arrival:
                 fcar = card.genFileCar()
                 fcar.addtofile(tare,curs)
                 fcar.gentrace('A',endstat,day,time,tnum,'L',curs)
             elif inst[0].upper() == 'Y':
-                card.genFileCar().gentrace('D',endstat,day,time,tnum,'L',curs)
+                fcar = card.genFileCar()
+                fcar.addtofile(tare,curs)
+                fcar.gentrace('D',endstat,day,time,tnum,'L',curs)
 
         cont = input("Added %s. Add another car? " % foundcar.registration)
         if cont.upper()[0] != 'Y':
