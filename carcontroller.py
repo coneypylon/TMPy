@@ -4,7 +4,7 @@ Possibly actually useful someday.
 Loosely corresponds to CN Car Control from ~1967
 '''
 
-from helpers import carcard, trainjournal, Station, Car, FileCar, frontpad
+from helpers import carcard, trainjournal, Station, Car, FileCar, confirm, frontpad
 import configparser, sqlite3
 
 def loadJournal(filename,curs):
@@ -80,7 +80,15 @@ def interactivejournal(jnum,arrival: bool,conn):
         number = int(input("Enter car number: "))
         try:
             foundcar = Car(initial,number,curs)
-            cars.append(foundcar) # probably we should confirm adding the car as-is
+            fields = ('Waybill Number','Commodity Code', 'Contents', 'Tonnage','Consignee','Final Destination','Online Origin','On-Coming Junction','Online Destination','Off-Going Junction','Block Number','Zone')
+            values = (foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone)
+            foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone = confirm(fields,values)
+            if foundcar.tonnage > 0:
+                foundcar.isloaded = True
+            else:
+                foundcar.isloaded = False
+            # ^ no checking of values - could be problematic
+            cars.append(foundcar)
         except KeyError: # we didn't find a car
             pass
             cond = input("Enter car condition: ")
@@ -104,12 +112,9 @@ def interactivejournal(jnum,arrival: bool,conn):
             if inst[0].upper() == 'Y' and arrival:
                 fcar = card.genFileCar()
                 fcar.addtofile(tare,curs)
-                fcar.gentrace('A',endstat,day,time,tnum,'L',curs)
             elif inst[0].upper() == 'Y':
                 fcar = card.genFileCar()
                 fcar.addtofile(tare,curs)
-                fcar.gentrace('D',endstat,day,time,tnum,'L',curs)
-
         cont = input("Added %s. Add another car? " % foundcar.registration)
         if cont.upper()[0] != 'Y':
             break

@@ -3,6 +3,17 @@ from datetime import datetime,UTC
 import os, sqlite3
 
 # helper function - makes a circular dependency if moved
+def confirm(labels: list[str],values: list):
+    outlst = []
+    for x in range(0,len(labels)):
+        t = input("Confirm or change %s [%s]: " % (labels[x],values[x]))
+        if t == '':
+            outlst.append(values[x])
+        else:
+            outlst.append(t) # no checking of the value!!!!
+    return outlst
+
+
 def frontpad(num,spaces:int):
     if type(num) == str:
         tnum = num
