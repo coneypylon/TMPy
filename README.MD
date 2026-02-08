@@ -9,11 +9,11 @@ Here is a diagram of the overall system with highlights for the current progress
 ![diagram of CNR Traffic Master Plan](https://github.com/coneypylon/TMPy/blob/main/TMP-progress.png?raw=true)
 
 ### Running/Testing
-If you want to try this, use the included "ICTS" SQL file to set up a DB, make sure that main.py points at it, and try some of the following commands:
+If you want to try this, use the included "ICTS" SQL file to set up a DB, make sure that inquiry.py points at it, and try some of the following commands:
 
-python main.py 12123456
+python inquiry.py 12123456
 
-python main.py 24654321
+python inquiry.py 24654321
 
 These should return:
 --123456CGTX 01/2010
