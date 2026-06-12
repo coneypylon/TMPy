@@ -101,7 +101,7 @@ rawcars = cur.fetchall()
 traces = []
 ad = ('A','D')
 le = ('L','E')
-trains = (401,405,402,406,225,226) # these will have to be localized later. Right now I need a lot of data.
+trains = (401,402) # these will have to be localized later. Right now I need a lot of data.
 
 for car in rawcars:
     newstat = choice(rawstats)[0]
@@ -136,6 +136,8 @@ if routeconf:
     trains = []
     rawtrains = data["Trains"][1:]
     for train in rawtrains:
+        if len(train) != 2:
+            continue
         route = train[1].split(',')
         allroute.extend(route)
         num = int(train[0])

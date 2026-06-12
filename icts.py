@@ -66,7 +66,7 @@ def lookuproads(selcode,curs):
     elif selcode == '4': # UTLX
         return "= 'UTLX'"
     elif selcode == '8': # Other Foreign
-        return "NOT IN ('CGTX','CP','UTLX') AND NOT LIKE 'CN%'"
+        return "NOT IN ('CGTX','CP','UTLX') AND Initial NOT LIKE 'CN%'"
     elif selcode == '9': # All Foreign
         return "NOT LIKE 'CN%'" # probably could be strict equality, but I'm not sure how GTW/CVR is handled.
     else:
