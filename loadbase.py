@@ -3,7 +3,7 @@
 import pyexcel_odsr as ods, sys, sqlite3
 from random import randint, choice
 from tqdm import tqdm
-from main import getdattuple, cleantraces, getcars
+from icts import getdattuple, cleantraces, getcars
 from classes import Station, Car, Train
 from dispatch import runDay
 
