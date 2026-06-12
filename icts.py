@@ -70,7 +70,7 @@ def lookuproads(selcode,curs):
     elif selcode == '9': # All Foreign
         return "NOT LIKE 'CN%'" # probably could be strict equality, but I'm not sure how GTW/CVR is handled.
     else:
-        raise Exception
+        raise ValueError
 
 def parse_n_route_string(string,curs,conn):
     if len(string) < 3 or len(string) > 8: # we accept single-digit car numbers
@@ -78,7 +78,10 @@ def parse_n_route_string(string,curs,conn):
     
     # helpful constants and variables
     rq = string[0]
-    initialsubquery = lookuproads(string[1],curs)
+    try:
+        initialsubquery = lookuproads(string[1],curs)
+    except ValueError:
+        return ["INVALID SELCODE"]
     num = int(string[2:])
     outputs = dict() # it's possible there are multiple returned.
 
@@ -89,7 +92,7 @@ def parse_n_route_string(string,curs,conn):
     elif rq in ['3','4']:
         mainq = "SELECT * FROM RunningRecordsComplete WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
     else:
-        raise NotImplementedError
+        return ["INVALID REQUESTTYPE"]
 
     # get the status line(s) and the exception(s)
     statusq = "SELECT * FROM StatusLine WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
@@ -134,17 +137,26 @@ if __name__ == "__main__": # we're not in a lambda anymore
     conn = sqlite3.connect(db)
 
     cur = conn.cursor()
-    request = sys.argv[1].upper()
-    if request == 'INT':
-        clear_screen()
-        while True:
-            request = input().upper()
-            for x in parse_n_route_string(request,cur,conn):
+    try:
+        request = sys.argv[1].upper()
+        if request == 'INT':
+            clear_screen()
+            while True:
+                request = input().upper()
+                for x in parse_n_route_string(request,cur,conn):
+                    if type(x) == type(['a']):
+                        for y in x:
+                            print(y)
+                            time.sleep(0.5)
+                    else:
+                        print(x)
+                time.sleep(1)
+                print()
+        for x in parse_n_route_string(request,cur,conn):
+            if type(x) == type(['a']):
                 for y in x:
-                    time.sleep(1)
                     print(y)
-            time.sleep(1)
-            print()
-    for x in parse_n_route_string(request,cur,conn):
-        for y in x:
-            print(y)
+            else:
+                print(x)
+    except IndexError:
+        print("usage: script.py RINNNNNN or script.py INT")
