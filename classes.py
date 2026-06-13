@@ -68,7 +68,7 @@ class FileCar:
 
 class Train:
     def __init__(self, number, route):
-        self.curpos = randint(0,len(route) - 1)
+        self.curpos = 0#randint(0,len(route) - 1)
         self.route = route
         self.number = number
     def move(self):

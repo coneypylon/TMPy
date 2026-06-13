@@ -24,7 +24,7 @@ def backpad(num,spaces):
             tnum += "0"
     return tnum
 
-def getcars(loc,cur):
+def getcars(loc,cur) -> list[FileCar]:
     findq = "SELECT Initial, Number, LoadedOrEmpty, DestinationStation FROM LastLocationComplete WHERE StationNumber = %s;" % (loc)
     cur.execute(findq)
     results = cur.fetchall()
