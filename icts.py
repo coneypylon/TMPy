@@ -1,18 +1,8 @@
-import configparser, os, sys, sqlite3, time
-from datetime import datetime,UTC
-from classes import FileCar
+import configparser, sys, sqlite3, time
+from helpers import lookuproads, frontpad, clear_screen
 
-def frontpad(num,spaces):
-    if type(num) == str:
-        tnum = num
-        while len(tnum)<spaces:
-            tnum = " " + tnum
-    else:
-        tnum = str(num)
-        while len(tnum)<spaces:
-            tnum = "0" + tnum
-    return tnum
 
+<<<<<<<< HEAD:icts.py
 def backpad(num,spaces):
     if type(num) == str:
         tnum = num
@@ -71,6 +61,8 @@ def lookuproads(selcode,curs):
         return "NOT LIKE 'CN%'" # probably could be strict equality, but I'm not sure how GTW/CVR is handled.
     else:
         raise ValueError
+========
+>>>>>>>> 9b2cd67d0c99968c159385e76db4c1d7f78273ce:inquiry.py
 
 def parse_n_route_string(string,curs,conn):
     if len(string) < 3 or len(string) > 8: # we accept single-digit car numbers
@@ -97,8 +89,6 @@ def parse_n_route_string(string,curs,conn):
     # get the status line(s) and the exception(s)
     statusq = "SELECT * FROM StatusLine WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
     exceptionsq = "SELECT * FROM CanonicalExceptions WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
-
-    #print((statusq,mainq,exceptionsq))
 
     # request them
     curs.execute(statusq)
