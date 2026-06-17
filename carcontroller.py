@@ -24,7 +24,7 @@ def loadJournal(filename,curs):
                 trainnum = card[1:5]
                 nber = ''
                 if card[0] in ("A","C","D") and nber == '':
-                    nber = card[74:79]
+                    nber = card[74:80]
                 if card[0] == "D":
                     ordert = card[25:29]
                     dept = card[48:56]
@@ -36,7 +36,8 @@ def loadJournal(filename,curs):
                 consists.append(cardcar)
             elif card[0] == "H":
                 exceptions.append(card)
-        out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,int(leadunit),"LO",number=int(nber))
+        tmp = 6942 # int(leadunit)
+        out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
     for ex in exceptions:
         out.addexception(ex)
     return out
@@ -83,7 +84,7 @@ def interactivejournal(jnum,arrival: bool,conn):
             fields = ['Waybill Number','Commodity Code', 'Contents', 'Tonnage','Consignee','Final Destination','Online Origin','On-Coming Junction','Online Destination','Off-Going Junction','Block Number','Zone']
             values = [foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone]
             foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone = confirm(fields,values)
-            if foundcar.tonnage > 0:
+            if int(foundcar.tonnage) > 0:
                 foundcar.isloaded = True
             else:
                 foundcar.isloaded = False
@@ -145,11 +146,17 @@ if __name__=="__main__":
             print("Unattached consists: ")
             for x in unattachedConsists.values():
                 print(str(x))
-        print("Available options are [O]riginate a car, [T]erminate a train, Track an [A]rrival, Track a [D]eparture, [L]oad a card deck, [W]rite a card deck")
+        print("Available options are [O]riginate a car, [T]erminate a train, Track an [A]rrival, Track a [D]eparture, [C]lose a train journal, [L]oad a card deck, [W]rite a card deck")
         choice = input("Please select an option: ")[0].lower()
         if choice == "l":
             fname = input("Please enter filename: ")
-            tjournal = loadJournal(fname,conn.cursor())
+            try:
+                tjournal = loadJournal(fname,conn.cursor())
+            except FileNotFoundError:
+                try:
+                    tjournal = loadJournal(fname + ".t80",conn.cursor())
+                except FileNotFoundError:
+                    print('Could not find card deck')
             loadedJournals[tjournal.number] = tjournal
         elif choice == "w":
             wjournal = input("Enter a journal number: ")
@@ -173,3 +180,9 @@ if __name__=="__main__":
             number = input("Enter car number: ")
             tare = int(input("Enter tare weight of car: "))
             nucar = FileCar(initial,number,'E',tare=tare).addtofile(conn.cursor())
+        elif choice == 'c':
+            wjournal = input("Enter a journal number: ")
+            try:
+                test = loadedJournals[wjournal].close(conn)
+            except KeyError: # the journal doesn't exist/hasn't been made
+                print("No such journal has been loaded.")

@@ -2,16 +2,7 @@ from random import randint
 from datetime import datetime,UTC
 import os, sqlite3
 
-# helper function - makes a circular dependency if moved
-def confirm(labels: list[str],values: list):
-    outlst = []
-    for x in range(0,len(labels)):
-        t = input("Confirm or change %s [%s]: " % (labels[x],values[x]))
-        if t == '':
-            outlst.append(values[x])
-        else:
-            outlst.append(t) # no checking of the value!!!!
-    return outlst
+
 
 
 def frontpad(num,spaces:int):
@@ -161,7 +152,7 @@ class carcard:
         self.delto = delto
         self.onlineorig = onlineorig
         self.recfrom = recfrom
-        self.locslug = destination + block + zone + onlinedest + delto + onlineorig + recfrom
+        self.locslug = destination + block + zone + str(onlinedest) + delto + str(onlineorig) + recfrom
         self.commodity = commoditycode
         self.consignee = consignee
         self.contents = contents
@@ -284,7 +275,7 @@ class trainjournal:
         self.exceptions = dict()
     def cardformat(self,type):
         cardstack = []
-        if type == 'D':
+        if type == 'D' or type == 'A':
             selector = "#somekindofcodeshre*                                                            "
             addresses = "H Some kind of address goes here but I have no idea what it be  *               "
             if self.fr == None:
@@ -295,7 +286,10 @@ class trainjournal:
                 tostr = '      '
             else:
                 tostr = str(self.to.number)
-            departure = "D%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (self.trainNumber,frstr,tostr,frontpad(self.loads,3),frontpad(self.empties,3),self.orderTime,self.departure,frontpad(self.tonnage,5),self.lead,self.callletters,self.number)
+            if type == 'D':
+                directioncard = "D%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (frontpad(str(self.trainNumber),4),frstr,tostr,frontpad(self.loads,3),frontpad(self.empties,3),self.orderTime,self.departure,frontpad(self.tonnage,5),self.lead,self.callletters,self.number)
+            else:
+                directioncard = "A%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (frontpad(str(self.trainNumber),4),frstr,tostr,frontpad(self.loads,3),frontpad(self.empties,3),self.orderTime,self.departure,frontpad(self.tonnage,5),self.lead,self.callletters,self.number)
             carlst = []
             for x in self.carconsist:
                 carlst.append(x.cardformat(self.number))
@@ -305,7 +299,7 @@ class trainjournal:
                 exceptlst.extend(x)
             endoftrain = "H End of Train@@@@@@@@@@*                                                       "
             endoftransmission = "P END OF TRANSMISSION%%@@@@@@@@@@#SelectionCodesGoHereForMyOffice*              "
-            cardstack = [selector,addresses,departure]
+            cardstack = [selector,addresses,directioncard]
             cardstack.extend(carlst)
             cardstack.extend(exceptlst)
             cardstack.append(endoftrain)
@@ -327,6 +321,16 @@ class trainjournal:
                 self.exceptions[key] = [exception]
             else:
                 self.exceptions[key].append(exception)
+    def close(self,conn: sqlite3.Connection):
+        curs = conn.cursor()
+        for car in self.carconsist:
+            fcar = car.genFileCar()
+            if car.isloaded:
+                lore = 'L'
+            else:
+                lore = 'E'
+            fcar.gentrace('D',self.fr.code,int(self.departure),int(self.departure),self.trainNumber,lore,curs) # faulty assumption of departure here. TODO: fix train journals and understand how tf they are supposed to work
+        conn.commit()
     def __str__(self):
         if self.open:
             ostatus = "OPEN"
@@ -378,7 +382,7 @@ class FileCar:
                 (self.initial,self.number,consign,cargo,start,end,day,time, tonnage,comcode)
         cur.execute(wayq)
         self.curdest = end
-    def gentrace(self,aord,loc,day,time,trnum,lore,cur): # we will want to delete old traces at some point
+    def gentrace(self,aord: str,loc: int,day: int,time: int,trnum: int,lore: str,cur): # we will want to delete old traces at some point
         traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
         try:
             cur.execute(traceq)
@@ -404,3 +408,15 @@ class Train:
             return self.route[self.curpos]
     def location(self):
         return self.route[self.curpos]
+    
+
+# helper function - makes a circular dependency if moved
+def confirm(labels: list[str],values: list) -> list[str]:
+    outlst = []
+    for x in range(0,len(labels)):
+        t = input("Confirm or change %s [%s]: " % (labels[x],values[x]))
+        if t == '':
+            outlst.append(values[x])
+        else:
+            outlst.append(t) # no checking of the value!!!!
+    return outlst

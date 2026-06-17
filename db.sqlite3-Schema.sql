@@ -93,7 +93,7 @@ WaybillEvents AS (
 	ORDER BY Day DESC
 )
 SELECT 
-    c.Grade, c.Type, SUBSTR(s.name, 1, 8) AS "FinalDestination", w.Destination AS "DestinationStation", w.OffJunction AS "Off-GoingJunction", w.OriginStation, w.OnJunction AS "OnComingJunction",
+    c.initial, c.number, c.Grade, c.Type, SUBSTR(s.name, 1, 8) AS "FinalDestination", w.Destination AS "DestinationStation", w.OffJunction AS "OffGoingJunction", w.OriginStation, w.OnJunction AS "OnComingJunction",
 	w.CommodityCode, w.Consignee, w.Contents, c.Tare, w.Tonnage, w.ID as Waybill
 FROM LatestTraces AS t
 JOIN Carfile AS c
