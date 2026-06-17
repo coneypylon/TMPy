@@ -140,7 +140,7 @@ class NewStation(Station):
                 if header[x] == col:
                     values.append(data[x])
                     break
-        self.number, self.code, self.interrrwy, self.name, self.railway, self.interstat = values
+        self.number, self.code, self.interrwy, self.name, self.railway, self.interstat = values
 
 
 class carcard:
@@ -379,7 +379,7 @@ class FileCar:
         cur.execute(wayq)
         self.curdest = end
     def gentrace(self,aord,loc,day,time,trnum,lore,cur): # we will want to delete old traces at some point
-        traceq = "INSERT INTO Tracefile VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
+        traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
         try:
             cur.execute(traceq)
             self.lore = lore
@@ -392,7 +392,7 @@ class FileCar:
 
 class Train:
     def __init__(self, number, route):
-        self.curpos = randint(0,len(route) - 1)
+        self.curpos = 0#randint(0,len(route) - 1)
         self.route = route
         self.number = number
     def move(self):

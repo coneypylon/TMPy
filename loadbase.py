@@ -40,7 +40,7 @@ cur.executescript(q) # set up the DB
 conn.commit() # write it
 
 # fetch the spreadsheet
-data = ods.get_data(basebook)
+data: dict = ods.get_data(basebook)
 
 # load stations
 stationheader = data['Stations'][0]
@@ -63,7 +63,7 @@ conn.commit()
 
 # load cars
 carheader = data['Cars'][0]
-rawcars = data['Cars'][1:]
+rawcars: list = data['Cars'][1:]
 cars = []
 carsqs = []
 
@@ -117,7 +117,7 @@ for car in rawcars:
     value = "('%s',%s,'%s',%s,%s,%s,%s,'%s')" % (car[0],car[1],aord,newstat,day,tim,trn,lore)
     traces.append(value)
 
-traceq = "INSERT INTO Tracefile VALUES "
+traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES "
 
 for x in traces:
     try:
@@ -133,8 +133,10 @@ allroute = [] # eventually needs to be some demand spreadsheet.
 if routeconf:
     startd = endd - routenum
     trains = []
-    rawtrains = data["Trains"][1:]
+    rawtrains: list[list[str]] = data["Trains"][1:]
     for train in rawtrains:
+        if train == []:
+            break
         route = train[1].split(',')
         allroute.extend(route)
         num = int(train[0])
