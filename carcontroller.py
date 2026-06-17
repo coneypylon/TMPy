@@ -180,6 +180,7 @@ if __name__=="__main__":
             number = input("Enter car number: ")
             tare = int(input("Enter tare weight of car: "))
             nucar = FileCar(initial,number,'E',tare=tare).addtofile(conn.cursor())
+            conn.commit()
         elif choice == 'c':
             wjournal = input("Enter a journal number: ")
             try:
