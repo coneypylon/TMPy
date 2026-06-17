@@ -8,8 +8,8 @@ from helpers import carcard, trainjournal, Station, Car, FileCar, confirm, front
 import configparser, sqlite3
 
 def loadJournal(filename,curs):
-    fr = ''
-    to = ''
+    fr = None
+    to = None
     trainnum = ''
     leadunit = ''
     number = ''
@@ -22,9 +22,9 @@ def loadJournal(filename,curs):
             card = x[:-1] # remove newline
             if card[0] in ("A","D","K"): # arrival, origin or departure header
                 trainnum = card[1:5]
-                number = ''
-                if card[0] in ("A","C","D") and number == '':
-                    number = card[74:79]
+                nber = ''
+                if card[0] in ("A","C","D") and nber == '':
+                    nber = card[74:79]
                 if card[0] == "D":
                     ordert = card[25:29]
                     dept = card[48:56]
@@ -32,11 +32,11 @@ def loadJournal(filename,curs):
                 fr = Station(int(card[5:10]),curs)
                 to = Station(int(card[10:15]),curs)
             elif card[0] == "G":
-                cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=card[26:31],delto=card[31],onlineorig=card[32:37],recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=card[64:66],nettons=card[66:68],waybillnum=card[68:74])
+                cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
                 consists.append(cardcar)
             elif card[0] == "H":
                 exceptions.append(card)
-        out = trainjournal(trainnum,fr,to,consists,ordert,dept,leadunit,"LO",number=number)
+        out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,int(leadunit),"LO",number=int(nber))
     for ex in exceptions:
         out.addexception(ex)
     return out
@@ -65,13 +65,13 @@ def interactivejournal(jnum,arrival: bool,conn):
     while startstat == 0: # we will do some error checking
         snum = input("Enter From Station: ")
         try:
-            startstat = Station(snum,curs)
+            startstat = Station(int(snum),curs)
         except Exception as e:
             print(str(e))
     while endstat == 0: # we will do some error checking
         snum = input("Enter To Station: ")
         try:
-            endstat = Station(snum,curs)
+            endstat = Station(int(snum),curs)
         except Exception as e:
             print(str(e))
     
@@ -80,8 +80,8 @@ def interactivejournal(jnum,arrival: bool,conn):
         number = int(input("Enter car number: "))
         try:
             foundcar = Car(initial,number,curs)
-            fields = ('Waybill Number','Commodity Code', 'Contents', 'Tonnage','Consignee','Final Destination','Online Origin','On-Coming Junction','Online Destination','Off-Going Junction','Block Number','Zone')
-            values = (foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone)
+            fields = ['Waybill Number','Commodity Code', 'Contents', 'Tonnage','Consignee','Final Destination','Online Origin','On-Coming Junction','Online Destination','Off-Going Junction','Block Number','Zone']
+            values = [foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone]
             foundcar.billnum,foundcar.commodity,foundcar.contents,foundcar.tonnage,foundcar.consignee,foundcar.destination,foundcar.onlineorig,foundcar.recfrom,foundcar.onlinedest,foundcar.delto,foundcar.block,foundcar.zone = confirm(fields,values)
             if foundcar.tonnage > 0:
                 foundcar.isloaded = True
@@ -99,27 +99,28 @@ def interactivejournal(jnum,arrival: bool,conn):
             contents = input("Enter content text")
             consignee = input("Enter consignee: ")
             tonnage = input("Enter tonnage of %s: ") % contents
-            onlineorig = Station(int(input("Enter origin code: ")))
+            onlineorig = Station(int(input("Enter origin code: ")),curs)
             recfrom = input("Enter on-coming junction: ")
-            onlinedest = Station(int(input("Enter destination code: "))) # likely we will have to eventually put a separate destination
+            onlinedest = Station(int(input("Enter destination code: ")),curs) # likely we will have to eventually put a separate destination
             delto = input("Enter off-going junction: ")
             desttext = onlinedest.name
             block = input("Enter block number: ")
             zone = '  '
 
-            card = carcard(initial,number,cond,typ,desttext,block,onlinedest.number,onlineorig.number,tare,zone,delto,recfrom,commodity,consignee,contents,tonnage,waybillnum)
+            card = carcard(initial,str(number),cond,typ,desttext,block,int(onlinedest.number),int(onlineorig.number),int(tare),zone,delto,recfrom,commodity,consignee,contents,int(tonnage),waybillnum)
             inst = input("Insert directly into Carfile? ")
             if inst[0].upper() == 'Y' and arrival:
                 fcar = card.genFileCar()
-                fcar.addtofile(tare,curs)
+                fcar.addtofile(curs)
             elif inst[0].upper() == 'Y':
                 fcar = card.genFileCar()
-                fcar.addtofile(tare,curs)
+                fcar.addtofile(curs)
+            conn.commit()
         cont = input("Added %s. Add another car? " % foundcar.registration)
         if cont.upper()[0] != 'Y':
             break
 
-    return trainjournal(tnum,startstat,endstat,cars,otime,time,lead,callcode,jnum)
+    return trainjournal(int(tnum),startstat,endstat,cars,otime,time,int(lead),callcode,jnum)
 
 
 if __name__=="__main__":

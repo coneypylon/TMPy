@@ -85,6 +85,7 @@ def lookuproads(selcode,curs):
         raise Exception
 
 # helper classes.
+'''
 class consist:
     def cardformat(self,journal:int=000000):
         self.infoslug = self.registration + self.condition + self.type
@@ -99,8 +100,94 @@ class consist:
         else:
             lore = 'E'
         return FileCar(backpad(self.railroad,4),self.number,lore,self.onlinedest)
+'''
+class Station:
+    number: str
+    code: str
+    interrwy: str
+    name: str
+    railway: str
+    interstat: str
+    def __init__(self, number: int, curs: sqlite3.Cursor):
+        getstatq = "SELECT * FROM stations WHERE number=%s;" % number
+        curs.execute(getstatq)
 
-class Car(consist):
+        results = curs.fetchall()
+
+        if len(results) > 1:
+            raise Exception("Ambiguous number of results for station %s" % number)
+        elif len(results) == 1: # what we expect
+            result = results[0]
+            self.number = result[0]
+            self.code = result[1]
+            self.interrwy = result[2]
+            self.name = result[3]
+            self.railway = result[4]
+            self.interstat = result[5]
+        else:
+            raise KeyError("No station with number %s found!" % number)
+    def insertq(self):
+        insq = "INSERT INTO stations VALUES (%s,'%s','%s','%s','%s',%s);" % (self.number,self.code,self.interrwy,self.name,self.railway,self.interstat)
+        return insq
+
+
+class NewStation(Station):
+    def __init__(self, header: list, data: list):
+        order = ["number", "code", "interchangedrailway", "name", "railway", "interchange"]
+        values = []
+        for col in order:
+            for x in range(0,len(header)):
+                if header[x] == col:
+                    values.append(data[x])
+                    break
+        self.number, self.code, self.interrrwy, self.name, self.railway, self.interstat = values
+
+
+class carcard:
+    def __init__(self,initials: str,number: str,condition: str,type: str,destination: str,block,onlinedest: int,onlineorig: int,taretons: int,zone='  ',delto=' ',recfrom=' ',commoditycode='          ',consignee='          ',contents='      ',nettons=0,waybillnum='      '):
+        self.railroad = initials
+        self.number = int(number)
+        self.registration = initials + number
+        self.condition = condition
+        self.type = type
+        self.infoslug = self.registration + condition + type
+        try:
+            self.destination = destination[:8].upper()
+        except:
+            self.destination = backpad(destination,8).upper()
+        self.block = block
+        self.zone = zone
+        self.onlinedest = onlinedest
+        self.delto = delto
+        self.onlineorig = onlineorig
+        self.recfrom = recfrom
+        self.locslug = destination + block + zone + onlinedest + delto + onlineorig + recfrom
+        self.commodity = commoditycode
+        self.consignee = consignee
+        self.contents = contents
+        self.tare = str(taretons)
+        self.tonnage = str(nettons)
+        if int(self.tonnage) > 0:
+            self.isloaded = True
+        else:
+            self.isloaded = False
+        self.contentslug = commoditycode + "   " + consignee + contents + self.tare + self.tonnage
+        self.billnum = waybillnum
+    def cardformat(self,journal:str='000000'):
+        self.infoslug = self.registration + self.condition + self.type
+        if journal == 000000:
+            journal = '      '
+        self.locslug = self.destination + self.block + self.zone + str(self.onlinedest) + self.delto + str(self.onlineorig) + self.recfrom
+        self.contentslug = str(self.commodity) + "   " + self.consignee + self.contents + str(self.tare) + str(self.tonnage)
+        return "G%s%s%s%s " % (self.infoslug,self.locslug,self.contentslug,str(self.billnum) + str(journal))
+    def genFileCar(self):
+        if self.isloaded:
+            lore = 'L'
+        else:
+            lore = 'E'
+        return FileCar(backpad(self.railroad,4),self.number,lore,self.onlinedest,int(self.tare),self.condition,self.type)
+    
+class Car(carcard):
     def __init__(self,initial: str, number: int, curs: sqlite3.Cursor):
         getcarq = "SELECT Grade, Type, FinalDestination, DestinationStation, OffGoingJunction, OriginStation, OnComingJunction, CommodityCode, Consignee, Contents, Tare, Tonnage, Waybill FROM CarControlfile WHERE initial='%s' AND number=%s;" % (backpad(initial,4),number)
         curs.execute(getcarq)
@@ -144,39 +231,8 @@ class Car(consist):
         else:
             raise KeyError("No car with number %s found!" % number)
 
-class carcard(consist):
-    def __init__(self,initials: str,number: int,condition: str,type: str,destination: int,block,onlinedest: int,onlineorig: int,taretons: int,zone='  ',delto=' ',recfrom=' ',commoditycode='          ',consignee='          ',contents='      ',nettons=0,waybillnum='      '):
-        self.railroad = initials
-        self.number = number
-        self.registration = initials + number
-        self.condition = condition
-        self.type = type
-        self.infoslug = self.registration + condition + type
-        try:
-            self.destination = destination[:8].upper()
-        except:
-            self.destination = backpad(destination,8).upper()
-        self.block = block
-        self.zone = zone
-        self.onlinedest = onlinedest
-        self.delto = delto
-        self.onlineorig = onlineorig
-        self.recfrom = recfrom
-        self.locslug = destination + block + zone + onlinedest + delto + onlineorig + recfrom
-        self.commodity = commoditycode
-        self.consignee = consignee
-        self.contents = contents
-        self.tare = taretons
-        self.tonnage = nettons
-        if int(self.tonnage) > 0:
-            self.isloaded = True
-        else:
-            self.isloaded = False
-        self.contentslug = commoditycode + "   " + consignee + contents + taretons + nettons
-        self.billnum = waybillnum
-    
 
-class trailercard(consist):
+class trailercard(carcard):
     def __init__(self,initials,number,condition,type,carryingcar,trailerOwner,nettons):
         self.railroad = initials
         self.number = number
@@ -201,7 +257,7 @@ class trailercard(consist):
         self.billnum = "-     "
 
 class trainjournal:
-    def __init__(self, trainNumber: int, stationFrom: Station, stationTo: Station, cars: list[Car], orderTime: int, departureTimeStamp: str,leadcode: int,callletters: str,number=0,open=True):
+    def __init__(self, trainNumber: int, stationFrom: Station | None, stationTo: Station | None, cars: list[Car], orderTime: str, departureTimeStamp: str,leadcode: int,callletters: str,number=0,open=True):
         self.trainNumber=trainNumber
         self.fr = stationFrom
         self.to = stationTo
@@ -231,7 +287,15 @@ class trainjournal:
         if type == 'D':
             selector = "#somekindofcodeshre*                                                            "
             addresses = "H Some kind of address goes here but I have no idea what it be  *               "
-            departure = "D%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (self.trainNumber,self.fr.number,self.to.number,frontpad(self.loads,3),frontpad(self.empties,3),self.orderTime,self.departure,frontpad(self.tonnage,5),self.lead,self.callletters,self.number)
+            if self.fr == None:
+                frstr = '      '
+            else:
+                frstr = str(self.fr.number)
+            if self.to == None:
+                tostr = '      '
+            else:
+                tostr = str(self.to.number)
+            departure = "D%s%s%s    %s%s%s                   %s%s %s    -%s %s " % (self.trainNumber,frstr,tostr,frontpad(self.loads,3),frontpad(self.empties,3),self.orderTime,self.departure,frontpad(self.tonnage,5),self.lead,self.callletters,self.number)
             carlst = []
             for x in self.carconsist:
                 carlst.append(x.cardformat(self.number))
@@ -268,42 +332,16 @@ class trainjournal:
             ostatus = "OPEN"
         else:
             ostatus = "CLOSED"
-        return "[%s] Journal %s for train %s from %s to %s with %s loads and %s empties." % (ostatus,self.number,self.trainNumber,self.fr.name,self.to.name,self.loads,self.empties)
-
-class Station:
-    def __init__(self, number: int, curs: sqlite3.Cursor):
-        getstatq = "SELECT * FROM stations WHERE number=%s;" % number
-        curs.execute(getstatq)
-
-        results = curs.fetchall()
-
-        if len(results) > 1:
-            raise Exception("Ambiguous number of results for station %s" % number)
-        elif len(results) == 1: # what we expect
-            result = results[0]
-            self.number = result[0]
-            self.code = result[1]
-            self.interrwy = result[2]
-            self.name = result[3]
-            self.railway = result[4]
-            self.interstat = result[5]
+        if self.fr == None:
+            frstr = '      '
         else:
-            raise KeyError("No station with number %s found!" % number)
-    def insertq(self):
-        insq = "INSERT INTO stations VALUES (%s,'%s','%s','%s','%s',%s);" % (self.number,self.code,self.interrrwy,self.name,self.railway,self.interstat)
-        return insq
+            frstr = str(self.fr.number)
+        if self.to == None:
+            tostr = '      '
+        else:
+            tostr = str(self.to.number)
+        return "[%s] Journal %s for train %s from %s to %s with %s loads and %s empties." % (ostatus,self.number,self.trainNumber,frstr,tostr,self.loads,self.empties)
 
-
-class NewStation(Station):
-    def __init__(self, header: list, data: list):
-        order = ["number", "code", "interchangedrailway", "name", "railway", "interchange"]
-        values = []
-        for col in order:
-            for x in range(0,len(header)):
-                if header[x] == col:
-                    values.append(data[x])
-                    break
-        self.number, self.code, self.interrrwy, self.name, self.railway, self.interstat = values
 
 class NewCar:
     def __init__(self, header: list, data: list):
@@ -322,13 +360,14 @@ class NewCar:
 
     
 class FileCar:
-    def __init__(self,initial,number,lore,curdest=0,tare=22,grade='A'):
+    def __init__(self,initial,number,lore,curdest=0,tare=22,grade='A',typ='XB'):
         self.number = number
         self.initial = initial
         self.lore = lore
         self.curdest = curdest
         self.Tare = tare
         self.Grade = grade
+        self.typ = typ
     def removewaybill(self,cur): # someday this should be date sensitive
         delq = "DELETE FROM Waybillfile WHERE Initial = '%s' AND Number = %s;" % (self.initial, self.number)
         cur.execute(delq)
@@ -347,7 +386,7 @@ class FileCar:
         except sqlite3.IntegrityError: # we looped around months and had a problem
             pass
     def addtofile(self,curs):
-        insq = "INSERT INTO Carfile(Initial, Number, Type, Grade, Tare) VALUES ('%s',%s,'%s','%s',%s);" % (backpad(self.Initial,4), self.Number,self.Type,self.Grade, self.Tare)
+        insq = "INSERT INTO Carfile(Initial, Number, Type, Grade, Tare) VALUES ('%s',%s,'%s','%s',%s);" % (backpad(self.initial,4), self.number,self.typ,self.Grade, self.Tare)
         curs.execute(insq)
 
 
