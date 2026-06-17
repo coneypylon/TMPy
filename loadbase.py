@@ -3,7 +3,8 @@
 import pyexcel_odsr as ods, sys, sqlite3
 from random import randint, choice
 from tqdm import tqdm
-from helpers import NewStation, NewCar, Train, getdattuple
+from icts import getdattuple, cleantraces, getcars
+from classes import Station, Car, Train
 from dispatch import runDay
 
 # variables/constants
@@ -100,7 +101,7 @@ rawcars = cur.fetchall()
 traces = []
 ad = ('A','D')
 le = ('L','E')
-trains = (401,405,402,406,225,226) # these will have to be localized later. Right now I need a lot of data.
+trains = (401,402) # these will have to be localized later. Right now I need a lot of data.
 
 for car in rawcars:
     newstat = choice(rawstats)[0]
