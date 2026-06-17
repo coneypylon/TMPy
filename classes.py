@@ -58,13 +58,12 @@ class FileCar:
         cur.execute(wayq)
         self.curdest = end
     def gentrace(self,aord,loc,day,time,trnum,lore,cur): # we will want to delete old traces at some point
-        traceq = "INSERT INTO Tracefile VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
+        traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
         try:
             cur.execute(traceq)
             self.lore = lore
         except sqlite3.IntegrityError: # we looped around months and had a problem
             pass
-
 
 class Train:
     def __init__(self, number, route):

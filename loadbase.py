@@ -118,7 +118,7 @@ for car in rawcars:
     value = "('%s',%s,'%s',%s,%s,%s,%s,'%s')" % (car[0],car[1],aord,newstat,day,tim,trn,lore)
     traces.append(value)
 
-traceq = "INSERT INTO Tracefile VALUES "
+traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES "
 
 for x in traces:
     try:
