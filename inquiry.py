@@ -67,13 +67,16 @@ if __name__ == "__main__": # we're not in a lambda anymore
     if request == 'INT':
         clear_screen()
         while True:
-            request = input().upper()
-            for x in parse_n_route_string(request,cur,conn):
-                for y in x:
-                    time.sleep(1)
-                    print(y)
-            time.sleep(1)
-            print()
+            try:
+                request = input().upper()
+                for x in parse_n_route_string(request,cur,conn):
+                    for y in x:
+                        time.sleep(1)
+                        print(y)
+                time.sleep(1)
+                print()
+            except:
+                pass
     for x in parse_n_route_string(request,cur,conn):
         for y in x:
             print(y)
