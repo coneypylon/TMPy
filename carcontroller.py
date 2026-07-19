@@ -1,47 +1,85 @@
-'''Utilities for making card decks.
-Possibly actually useful someday.
+'''
+Loose approximation of CN Car Control from ~1967
 
-Loosely corresponds to CN Car Control from ~1967
+Works on TTY or card decks fed to it.
 '''
 
 from helpers import carcard, trainjournal, Station, Car, FileCar, confirm, frontpad
-import configparser, sqlite3
+import configparser, sqlite3, sys
 
-def loadJournal(filename,curs):
+def makecard(card:str,curs:sqlite3.Cursor)->tuple[str,carcard | trainjournal | str]:
+    if card[0] in ("A","D","K"): # arrival, origin or departure header
+        trainnum = card[1:5]
+        nber = ''
+        lunit = '0000'
+        ordert = ''
+        dept = ''
+        if card[0] in ("A","C","D") and nber == '':
+            nber = card[74:80]
+        if card[0] == "D":
+            ordert = card[25:29]
+            dept = card[48:56]
+            leadunit = card[62:66]
+            lunit = frontpad(int(leadunit),4)
+        fr = Station(int(card[5:10]),curs)
+        to = Station(int(card[10:15]),curs)
+        out = trainjournal(int(trainnum),fr,to,[],ordert,dept,lunit,"LO",number=int(nber))
+        return (0,out)
+    elif card[0] == "G":
+        cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
+        return (1,cardcar)
+    elif card[0] == "H":
+        return (2,card)
+    
+def loadJournal(fileorcards: str | list[str],curs,tty=False):
     fr = None
     to = None
-    trainnum = ''
-    leadunit = ''
+    tj = None
+    trainnum = 0000
+    leadunit = 0000
     number = ''
-    ordert = ''
-    dept = ''
+    ordert = 0000
+    dept = 0000
     consists = []
     exceptions = []
-    with open(filename,"r") as f:
-        for x in f.readlines():
+    if not tty:
+        with open(fileorcards,"r") as f: # TODO: Refactor to use makecard
+            cards = f.readlines()
+    else:
+        cards = fileorcards
+    for x in cards:
+        if not tty:
             card = x[:-1] # remove newline
-            if card[0] in ("A","D","K"): # arrival, origin or departure header
-                trainnum = card[1:5]
-                nber = ''
-                if card[0] in ("A","C","D") and nber == '':
-                    nber = card[74:80]
-                if card[0] == "D":
-                    ordert = card[25:29]
-                    dept = card[48:56]
-                    leadunit = card[62:66]
-                fr = Station(int(card[5:10]),curs)
-                to = Station(int(card[10:15]),curs)
-            elif card[0] == "G":
-                cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
-                consists.append(cardcar)
-            elif card[0] == "H":
-                exceptions.append(card)
-        tmp = 6942 # int(leadunit)
-        out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
+        else:
+            card = x
+        if card[0] in ("A","D","K"): # arrival, origin or departure header
+            trainnum = card[1:5]
+            nber = ''
+            if card[0] in ("A","C","D") and nber == '':
+                nber = card[74:80]
+            if card[0] == "D":
+                ordert = card[25:29]
+                dept = card[48:56]
+                leadunit = card[62:66]
+            fr = Station(int(card[5:10]),curs)
+            to = Station(int(card[10:15]),curs)
+        elif card[0] == "G":
+            cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
+            consists.append(cardcar)
+        elif card[0] == "H":
+            exceptions.append(card)
+    tmp = frontpad(int(leadunit),4)
+    out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
     for ex in exceptions:
         out.addexception(ex)
     return out
 
+
+'''
+D 4204619087930    0010001130                   0718123600080    4        42069 
+GCNR 420690ABXKITCHENE11  46190 87930 CYANIDE   TEAMTRACK CYANID0104123456     
+P END OF TRANSMISSION%%@@@@@@@@@@#AB*                                          
+'''
 
 def interactivejournal(jnum,arrival: bool,conn):
     curs = conn.cursor()
@@ -137,53 +175,80 @@ if __name__=="__main__":
     # set up the db connection
     conn = sqlite3.connect(db)
 
-    while True:
-        if len(loadedJournals.values()) > 0:
-            print("Loaded Journals: ")
-            for x in loadedJournals.values():
-                print(str(x))
-        if len(unattachedConsists.values()) > 0:
-            print("Unattached consists: ")
-            for x in unattachedConsists.values():
-                print(str(x))
-        print("Available options are [O]riginate a car, [T]erminate a train, Track an [A]rrival, Track a [D]eparture, [C]lose a train journal, [L]oad a card deck, [W]rite a card deck")
-        choice = input("Please select an option: ")[0].lower()
-        if choice == "l":
-            fname = input("Please enter filename: ")
-            try:
-                tjournal = loadJournal(fname,conn.cursor())
-            except FileNotFoundError:
+    if len(sys.argv) > 1: # someone helpfully included some arguments
+        if sys.argv[1].upper() == 'TTY': # they want the TTY interface described in the TMP Car Control Manual
+            curj = None
+            curdeck = []
+            while True:
+                entry = input().upper()
+                curdeck.append(entry)
+                if entry.startswith('P'):
+                    try:
+                        tjournal = loadJournal(curdeck,conn.cursor(),tty=True)
+                    except KeyError as e:
+                        print('S? %s' % str(e)[23:28])
+                    tjournal.close(conn)
+                    compstr = "REC'D %s - %sL%sE%sT" % (tjournal.trainNumber,tjournal.loads,tjournal.empties,tjournal.tonnage)
+                    print(compstr)
+        elif sys.argv[1].lower().endswith('t80'): # they gave us a card deck to read
+            fname = sys.argv[1]
+            tjournal = loadJournal(fname,conn.cursor())
+            tjournal.close(conn)
+            compstr = 'Train %s logged and closed successfully' % tjournal.trainNumber
+            print(compstr)
+        elif len(sys.argv[1]) == 80: # they are probably giving us a bunch of cards directly on the commandline
+            pass
+        else:
+            print("No valid commandline arguments detected")
+    else:
+        # User interactive interface
+        while True:
+            if len(loadedJournals.values()) > 0:
+                print("Loaded Journals: ")
+                for x in loadedJournals.values():
+                    print(str(x))
+            if len(unattachedConsists.values()) > 0:
+                print("Unattached consists: ")
+                for x in unattachedConsists.values():
+                    print(str(x))
+            print("Available options are [O]riginate a car, [T]erminate a train, Track an [A]rrival, Track a [D]eparture, [C]lose a train journal, [L]oad a card deck, [W]rite a card deck")
+            choice = input("Please select an option: ")[0].lower()
+            if choice == "l":
+                fname = input("Please enter filename: ")
                 try:
-                    tjournal = loadJournal(fname + ".t80",conn.cursor())
+                    tjournal = loadJournal(fname,conn.cursor())
                 except FileNotFoundError:
-                    print('Could not find card deck')
-            loadedJournals[tjournal.number] = tjournal
-        elif choice == "w":
-            wjournal = input("Enter a journal number: ")
-            try:
-                test = loadedJournals[wjournal]
-                typ = input("What kind of deck to write? Available options are (D). ").upper()
-                fname = input("What filename to use? ")
-                if "." not in fname:
-                    fname += ".t80"
-                loadedJournals[wjournal].write(type=typ,filename=fname)
-            except KeyError: # the journal doesn't exist/hasn't been made
-                print("No such journal has been loaded.")
-        elif choice == "a":
-            wjournal = input("Enter a journal number: ")
-            loadedJournals[wjournal] = interactivejournal(wjournal,True,conn)
-        elif choice == "d":
-            wjournal = input("Enter a journal number: ")
-            loadedJournals[wjournal] = interactivejournal(wjournal,False,conn)
-        elif choice == "o":
-            initial = input("Enter railroad initials: ")
-            number = input("Enter car number: ")
-            tare = int(input("Enter tare weight of car: "))
-            nucar = FileCar(initial,number,'E',tare=tare).addtofile(conn.cursor())
-            conn.commit()
-        elif choice == 'c':
-            wjournal = input("Enter a journal number: ")
-            try:
-                test = loadedJournals[wjournal].close(conn)
-            except KeyError: # the journal doesn't exist/hasn't been made
-                print("No such journal has been loaded.")
+                    try:
+                        tjournal = loadJournal(fname + ".t80",conn.cursor())
+                    except FileNotFoundError:
+                        print('Could not find card deck')
+                loadedJournals[tjournal.number] = tjournal
+            elif choice == "w":
+                wjournal = input("Enter a journal number: ")
+                try:
+                    test = loadedJournals[wjournal]
+                    typ = input("What kind of deck to write? Available options are (D). ").upper()
+                    fname = input("What filename to use? ")
+                    if "." not in fname:
+                        fname += ".t80"
+                    loadedJournals[wjournal].write(type=typ,filename=fname)
+                except KeyError: # the journal doesn't exist/hasn't been made
+                    print("No such journal has been loaded.")
+            elif choice == "a":
+                wjournal = input("Enter a journal number: ")
+                loadedJournals[wjournal] = interactivejournal(wjournal,True,conn)
+            elif choice == "d":
+                wjournal = input("Enter a journal number: ")
+                loadedJournals[wjournal] = interactivejournal(wjournal,False,conn)
+            elif choice == "o":
+                initial = input("Enter railroad initials: ")
+                number = input("Enter car number: ")
+                tare = int(input("Enter tare weight of car: "))
+                nucar = FileCar(initial,number,'E',tare=tare).addtofile(conn.cursor())
+                conn.commit()
+            elif choice == 'c':
+                wjournal = input("Enter a journal number: ")
+                try:
+                    test = loadedJournals[wjournal].close(conn)
+                except KeyError: # the journal doesn't exist/hasn't been made
+                    print("No such journal has been loaded.")
