@@ -342,6 +342,23 @@ class trainjournal:
                 fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
             else:
                 fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
+        for car in self.exceptions.keys():
+            for exception in self.exceptions[car]:
+                print(exception)
+                initials = exception[1:5]
+                nber = exception[5:11]
+                try:
+                    int(exception[56:60])
+                    dat = exception[58:60]
+                    tim = exception[60:64]
+                    text = exception[11:56]
+                except ValueError:
+                    text = exception[11:73]
+                    dat = self.dat[2:]
+                    tim = self.departure
+                exceptq = "INSERT INTO ExceptionFile(Initial,Number,Text,Day,Time) VALUES ('%s',%s,'%s',%s,%s);" % (initials,nber,text,dat,tim)
+                print(exceptq)
+                curs.execute(exceptq)
         conn.commit()
     def __str__(self):
         if self.open:

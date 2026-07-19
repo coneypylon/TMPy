@@ -68,6 +68,7 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
             cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
             consists.append(cardcar)
         elif card[0] == "H":
+            print(card)
             exceptions.append(card)
     tmp = frontpad(int(leadunit),4)
     out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
@@ -77,8 +78,9 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
 
 
 '''
-D 4204619087930    0010001130                   0718123600080    4        42069 
+D 4204619087930    0010001130                   0718123600080    4        42069
 GCNR 420690ABXKITCHENE11  46190 87930 CYANIDE   TEAMTRACK CYANID0104123456     
+HCNR 420690IMPORTANT HANDLE WITH CARE                                   NM     
 P END OF TRANSMISSION%%@@@@@@@@@@#AB*                                          
 '''
 
@@ -181,21 +183,24 @@ if __name__=="__main__":
             curj = None
             curdeck = []
             while True:
-                entry = input().upper()
-                if entry.startswith('I'): # inquiry
-                    t = parse_n_route_string(entry[1:],conn.cursor(),conn,embedded=True)
-                    for x in t:
-                        for y in x:
-                            print(y)
-                curdeck.append(entry)
-                if entry.startswith('P'):
-                    try:
-                        tjournal = loadJournal(curdeck,conn.cursor(),tty=True)
-                    except KeyError as e:
-                        print('S? %s' % str(e)[23:28])
-                    tjournal.close(conn)
-                    compstr = "REC'D %s - %sL%sE%sT" % (tjournal.trainNumber,tjournal.loads,tjournal.empties,tjournal.tonnage)
-                    print(compstr)
+                try:
+                    entry = input().upper()
+                    if entry.startswith('I'): # inquiry
+                        t = parse_n_route_string(entry[1:],conn.cursor(),conn,embedded=True)
+                        for x in t:
+                            for y in x:
+                                print(y)
+                    curdeck.append(entry)
+                    if entry.startswith('P'):
+                        try:
+                            tjournal = loadJournal(curdeck,conn.cursor(),tty=True)
+                        except KeyError as e:
+                            print('S? %s' % str(e)[23:28])
+                        tjournal.close(conn)
+                        compstr = "REC'D %s - %sL%sE%sT" % (tjournal.trainNumber,tjournal.loads,tjournal.empties,tjournal.tonnage)
+                        print(compstr)
+                except KeyboardInterrupt:
+                    exit()
         elif sys.argv[1].lower().endswith('t80'): # they gave us a card deck to read
             fname = sys.argv[1]
             tjournal = loadJournal(fname,conn.cursor())
