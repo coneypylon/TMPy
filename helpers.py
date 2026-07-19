@@ -339,9 +339,9 @@ class trainjournal:
             else:
                 lore = 'E'
             if aord == 'D':
-                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs)
+                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
             else:
-                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs)
+                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
         conn.commit()
     def __str__(self):
         if self.open:
@@ -394,7 +394,15 @@ class FileCar:
                 (self.initial,self.number,consign,cargo,start,end,day,time, tonnage,comcode)
         cur.execute(wayq)
         self.curdest = end
-    def gentrace(self,aord: str,loc: int,day: int,time: int,trnum: int,lore: str,cur): # we will want to delete old traces at some point
+    def gentrace(self,aord: str,loc: int,day: int,time: int,trnum: int,lore: str,cur,conn=None): # we will want to delete old traces at some point
+        if conn != None: # we have permission to add it to carfile
+            tcur = conn.cursor()
+            checkcfileq = "SELECT COUNT(*) FROM Carfile WHERE Initial = '%s' AND Number = %s;" % (self.initial,self.number)
+            tcur.execute(checkcfileq)
+            if tcur.fetchone()[0] == 0:
+                self.addtofile(tcur)
+            conn.commit()
+            
         traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
         try:
             cur.execute(traceq)

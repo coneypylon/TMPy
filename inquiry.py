@@ -3,9 +3,11 @@ from helpers import lookuproads, frontpad, clear_screen
 
 
 
-def parse_n_route_string(string: str,curs: sqlite3.Cursor,conn: sqlite3.Connection)->list[str]:
-    if len(string) < 3 or len(string) > 8: # we accept single-digit car numbers
+def parse_n_route_string(string: str,curs: sqlite3.Cursor,conn: sqlite3.Connection,embedded=False)->list[str]:
+    if not embedded and (len(string) < 3 or len(string) > 8): # we accept single-digit car numbers
         return "usage: script.py RINNNNNN"
+    elif embedded and (len(string) < 3 or len(string) > 8):
+        return [[]]
     
     # helpful constants and variables
     rq = string[0]

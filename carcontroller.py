@@ -5,6 +5,7 @@ Works on TTY or card decks fed to it.
 '''
 
 from helpers import carcard, trainjournal, Station, Car, FileCar, confirm, frontpad
+from inquiry import parse_n_route_string
 import configparser, sqlite3, sys
 
 def makecard(card:str,curs:sqlite3.Cursor)->tuple[str,carcard | trainjournal | str]:
@@ -181,6 +182,11 @@ if __name__=="__main__":
             curdeck = []
             while True:
                 entry = input().upper()
+                if entry.startswith('I'): # inquiry
+                    t = parse_n_route_string(entry[1:],conn.cursor(),conn,embedded=True)
+                    for x in t:
+                        for y in x:
+                            print(y)
                 curdeck.append(entry)
                 if entry.startswith('P'):
                     try:
