@@ -5,7 +5,7 @@ import os, sqlite3
 
 
 
-def frontpad(num,spaces:int):
+def frontpad(num:str | int,spaces:int):
     if type(num) == str:
         tnum = num
         while len(tnum)<spaces:
@@ -16,7 +16,7 @@ def frontpad(num,spaces:int):
             tnum = "0" + tnum
     return tnum
 
-def backpad(num,spaces:int):
+def backpad(num:str | int,spaces:int):
     if type(num) == str:
         tnum = num
         while len(tnum)<spaces:
@@ -36,12 +36,12 @@ def getcars(loc,cur: sqlite3.Cursor):
         outlst.append(FileCar(result[0],result[1],result[2],result[3]))
     return outlst
 
-def getdattuple():
+def getdattuple()->tuple[int]:
     now = datetime.now(UTC)
     formatted_time = now.strftime(r"%d%H%M")
     return (int(formatted_time[0:2]),int(formatted_time[2:4])) # probably there's another way to do this, but w/e
 
-def cleantraces(cur: sqlite3.Cursor):
+def cleantraces(cur: sqlite3.Cursor)->None:
     getdelqs = "SELECT * FROM TracesToDelete;"
     cur.execute(getdelqs)
     results = cur.fetchall()
@@ -49,7 +49,7 @@ def cleantraces(cur: sqlite3.Cursor):
         delq = "DELETE FROM Tracefile WHERE Initials = '%s' AND Number = %s AND Day = %s AND Time = %s;" % row
         cur.execute(delq)
 
-def clear_screen():
+def clear_screen()->None:
     # Check the operating system name
     if os.name == 'nt':
         # For Windows
@@ -58,7 +58,7 @@ def clear_screen():
         # For Linux, macOS, and others ('posix' is the standard for non-Windows)
         _ = os.system('clear')
 
-def lookuproads(selcode,curs):
+def lookuproads(selcode: str,curs: any):
     # if this ever becomes productionized, probably this should be an actual DB lookup. For now, it's hardcoded.
     if selcode == '1': # CN
         return "LIKE 'CN%'"
@@ -100,7 +100,7 @@ class Station:
     railway: str
     interstat: str
     def __init__(self, number: int, curs: sqlite3.Cursor):
-        getstatq = "SELECT * FROM stations WHERE number=%s;" % number
+        getstatq = "SELECT number,code,interchangedrailway,name,railway,interchange FROM stations WHERE number=%s;" % number
         curs.execute(getstatq)
 
         results = curs.fetchall()
@@ -267,7 +267,12 @@ class trainjournal:
                 self.empties += 1
             self.tonnage += int(car.tonnage)
         self.orderTime = orderTime
-        self.departure = departureTimeStamp # presumption is that the train is departing AND being created
+        if len(departureTimeStamp) > 4: # it has a time
+            self.departure = departureTimeStamp[4:] # presumption is that the train is departing AND being created
+            self.dat = departureTimeStamp[0:4]
+        else:
+            self.departure = departureTimeStamp # presumption is that the train is departing AND being created
+            self.dat = getdattuple()[0:2]
         self.units = [] # presumption is that the train is departing AND being created. Weirdly, the manual doesn't prescribe assigning units other than the lead
         self.lead = leadcode
         self.callletters = callletters # no idea how to generate
@@ -323,13 +328,37 @@ class trainjournal:
                 self.exceptions[key].append(exception)
     def close(self,conn: sqlite3.Connection):
         curs = conn.cursor()
+        if int(self.departure) == 0:
+            aord = 'A'
+        else:
+            aord = 'D'
         for car in self.carconsist:
             fcar = car.genFileCar()
             if car.isloaded:
                 lore = 'L'
             else:
                 lore = 'E'
-            fcar.gentrace('D',self.fr.code,int(self.departure),int(self.departure),self.trainNumber,lore,curs) # faulty assumption of departure here. TODO: fix train journals and understand how tf they are supposed to work
+            if aord == 'D':
+                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
+            else:
+                fcar.gentrace(aord,self.fr.number,int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
+        for car in self.exceptions.keys():
+            for exception in self.exceptions[car]:
+                print(exception)
+                initials = exception[1:5]
+                nber = exception[5:11]
+                try:
+                    int(exception[56:60])
+                    dat = exception[58:60]
+                    tim = exception[60:64]
+                    text = exception[11:56]
+                except ValueError:
+                    text = exception[11:73]
+                    dat = self.dat[2:]
+                    tim = self.departure
+                exceptq = "INSERT INTO ExceptionFile(Initial,Number,Text,Day,Time) VALUES ('%s',%s,'%s',%s,%s);" % (initials,nber,text,dat,tim)
+                print(exceptq)
+                curs.execute(exceptq)
         conn.commit()
     def __str__(self):
         if self.open:
@@ -382,7 +411,15 @@ class FileCar:
                 (self.initial,self.number,consign,cargo,start,end,day,time, tonnage,comcode)
         cur.execute(wayq)
         self.curdest = end
-    def gentrace(self,aord: str,loc: int,day: int,time: int,trnum: int,lore: str,cur): # we will want to delete old traces at some point
+    def gentrace(self,aord: str,loc: int,day: int,time: int,trnum: int,lore: str,cur,conn=None): # we will want to delete old traces at some point
+        if conn != None: # we have permission to add it to carfile
+            tcur = conn.cursor()
+            checkcfileq = "SELECT COUNT(*) FROM Carfile WHERE Initial = '%s' AND Number = %s;" % (self.initial,self.number)
+            tcur.execute(checkcfileq)
+            if tcur.fetchone()[0] == 0:
+                self.addtofile(tcur)
+            conn.commit()
+            
         traceq = "INSERT INTO Tracefile (Initials, Number, ArrOrDep, Station, Day, Time, Train, LoadOrEmpty) VALUES ('%s',%s,'%s',%s,%s,%s,%s,'%s');" % (self.initial,self.number,aord,loc,day,time,trnum,lore)
         try:
             cur.execute(traceq)
