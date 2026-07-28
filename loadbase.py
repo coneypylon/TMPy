@@ -130,19 +130,21 @@ conn.commit()
 
 allroute = [] # eventually needs to be some demand spreadsheet.
 
+
+startd = endd - routenum
+trains = []
+rawtrains: list[list[str]] = data["Trains"][1:]
+for train in rawtrains:
+    if train == []:
+        break
+    route = train[1].split(',')
+    allroute.extend(route)
+    num = int(train[0])
+    trains.append(Train(num,route))
 if routeconf:
-    startd = endd - routenum
-    trains = []
-    rawtrains: list[list[str]] = data["Trains"][1:]
-    for train in rawtrains:
-        if train == []:
-            break
-        route = train[1].split(',')
-        allroute.extend(route)
-        num = int(train[0])
-        trains.append(Train(num,route))
     for x in tqdm(range(0,routenum)):
         trainday = startd + x
         runDay(trains,conn,cur,trainday,allroute)
+        
 
 conn.close() # seems a little superstitious to do this.

@@ -3,7 +3,11 @@ from datetime import datetime,UTC
 import os, sqlite3
 
 
-
+def truncstr(string:str,length: int):
+    try:
+        return string[:length]
+    except:
+        return string
 
 def frontpad(num:str | int,spaces:int):
     if type(num) == str:
