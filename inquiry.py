@@ -24,6 +24,7 @@ def parse_n_route_string(string: str,curs: sqlite3.Cursor,conn: sqlite3.Connecti
     else:
         raise NotImplementedError
 
+
     # get the status line(s) and the exception(s)
     statusq = "SELECT * FROM StatusLine WHERE Number = %s AND Initial %s;" % (num,initialsubquery)
     exceptionsq = "SELECT * FROM CanonicalExceptions WHERE Number = %s AND Initial %s;" % (num,initialsubquery)

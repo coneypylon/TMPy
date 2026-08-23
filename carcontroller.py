@@ -39,8 +39,8 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
     trainnum = 0000
     leadunit = 0000
     number = ''
-    ordert = 0000
-    dept = 0000
+    ordert = '0000'
+    dept = '0000'
     consists = []
     exceptions = []
     if not tty:
@@ -55,7 +55,7 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
             card = x
         if card[0] in ("A","D","K"): # arrival, origin or departure header
             trainnum = card[1:5]
-            nber = ''
+            nber = '42069'
             if card[0] in ("A","C","D") and nber == '':
                 nber = card[74:80]
             if card[0] == "D":
@@ -71,7 +71,7 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
             print(card)
             exceptions.append(card)
     tmp = frontpad(int(leadunit),4)
-    out = trainjournal(int(trainnum),fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
+    out = trainjournal(trainnum,fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))
     for ex in exceptions:
         out.addexception(ex)
     return out
@@ -185,20 +185,28 @@ if __name__=="__main__":
             while True:
                 try:
                     entry = input().upper()
-                    if entry.startswith('I'): # inquiry
-                        t = parse_n_route_string(entry[1:],conn.cursor(),conn,embedded=True)
-                        for x in t:
-                            for y in x:
-                                print(y)
+                    
                     curdeck.append(entry)
                     if entry.startswith('P'):
                         try:
                             tjournal = loadJournal(curdeck,conn.cursor(),tty=True)
+                            curdeck = []
                         except KeyError as e:
-                            print('S? %s' % str(e)[23:28])
+                            print('S? %s' % str(e)[23:29])
+                            curdeck = []
+                            raise Exception
                         tjournal.close(conn)
                         compstr = "REC'D %s - %sL%sE%sT" % (tjournal.trainNumber,tjournal.loads,tjournal.empties,tjournal.tonnage)
                         print(compstr)
+                    else:# 
+                        if entry.startswith('I'): # inquiry
+                            t = entry[1:]
+                        else:
+                            t=entry
+                        t = parse_n_route_string(t,conn.cursor(),conn,embedded=True)
+                        for x in t:
+                            for y in x:
+                                print(y)
                 except KeyboardInterrupt:
                     exit()
         elif sys.argv[1].lower().endswith('t80'): # they gave us a card deck to read
@@ -263,3 +271,9 @@ if __name__=="__main__":
                     test = loadedJournals[wjournal].close(conn)
                 except KeyError: # the journal doesn't exist/hasn't been made
                     print("No such journal has been loaded.")
+
+'''
+AA42088994879301420001000    0                 08211841                   42069
+GCNR 830000ASHGASPE   10  87930 88994 STOCK     M JACQUES HORSES0505696742
+
+'''

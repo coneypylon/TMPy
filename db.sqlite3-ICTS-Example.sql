@@ -61,10 +61,10 @@ CREATE TABLE "stations" (
 	"interchange"	INTEGER NOT NULL,
 	PRIMARY KEY("number")
 );
-INSERT INTO "Carfile" VALUES ('CGTX',123456,'T','A'),
- ('UTLX',654321,'T','A'),
- ('CV  ',246810,'X','A'),
- ('MDT ',246810,'X','A');
+INSERT INTO "Carfile" VALUES ('CGTX',123456,'T','A',22),
+ ('UTLX',654321,'T','A',22),
+ ('CV  ',246810,'X','A',22),
+ ('MDT ',246810,'X','A',22);
 INSERT INTO "ExceptionFile" VALUES ('UTLX',654321,'BAD ORDERED AT JASPER        WHEELS          0110220088994','11','0815'),
  ('UTLX',654321,'CARE MR J A LAJEUNESSE OR MR JEAN MAURICE USEREAU','11','0815');
 INSERT INTO "Tracefile" VALUES ('UTLX',654321,'A',88994,10,1930,840,'L'),
@@ -74,7 +74,7 @@ INSERT INTO "Tracefile" VALUES ('UTLX',654321,'A',88994,10,1930,840,'L'),
  ('CGTX',123456,'D',17840,10,35,'A408','E'),
  ('CV  ',246810,'A',43335,8,2245,'A806','E'),
  ('MDT ',246810,'D',33338,10,330,310,'L');
-INSERT INTO "Waybillfile" VALUES ('UTLX',654321,'K C IRVING','GASOLN',14790,'Z',93390,'S',9,935),
+INSERT INTO "Waybillfile" (Initial,Number,Consignee,Contents,Destination,OffJunction,OriginStation,OnJunction,Day,Time) VALUES ('UTLX',654321,'K C IRVING','GASOLN',14790,'Z',93390,'S',9,935),
  ('CGTX',123456,'K C IRVING','OIL   ',14523,'L',12600,'R',5,13);
 INSERT INTO "stations" VALUES (12600,'',NULL,'','',0),
  (12900,' ',NULL,'HULLABALOO,NB','CNR',0),
