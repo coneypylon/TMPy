@@ -68,7 +68,6 @@ def loadJournal(fileorcards: str | list[str],curs,tty=False):
             cardcar = carcard(initials=card[1:5],number=card[5:11],condition=card[11],type=card[12:14],destination=card[14:22],block=card[22:24],zone=card[24:26],onlinedest=int(card[26:31]),delto=card[31],onlineorig=int(card[32:37]),recfrom=card[37],commoditycode=card[38:45],consignee=card[48:58],contents=card[58:64],taretons=int(card[64:66]),nettons=int(card[66:68]),waybillnum=card[68:74])
             consists.append(cardcar)
         elif card[0] == "H":
-            print(card)
             exceptions.append(card)
     tmp = frontpad(int(leadunit),4)
     out = trainjournal(trainnum,fr,to,consists,ordert,dept,tmp,"LO",number=int(nber))

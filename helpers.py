@@ -345,6 +345,7 @@ class trainjournal:
             
             if aord == 'D':
                 fcar.gentrace(aord,int(self.fr.number),int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
+                fcar.genwaybill(car.consignee,car.onlineorig,car.onlinedest,car.contents,self.dat[2:],self.departure,car.commodity,curs)
             else:
                 fcar.gentrace(aord,int(self.fr.number),int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
         for car in self.exceptions.keys():
@@ -410,7 +411,7 @@ class FileCar:
         delq = "DELETE FROM Waybillfile WHERE Initial = '%s' AND Number = %s;" % (self.initial, self.number)
         cur.execute(delq)
         self.curdest = 0
-    def genwaybill(self,consign,start,end,cargo,day,time,comcode,cur):
+    def genwaybill(self,consign: str,start: int,end: int,cargo: str,day: int,time: int,comcode: str,cur):
         tonnage = randint(1,20)
         wayq = "INSERT INTO Waybillfile (Initial, Number, Consignee, Contents, Destination, OriginStation, Day, Time, Tonnage, CommodityCode) VALUES ('%s',%s,'%s','%s',%s,%s,%s,%s,%s,%s);" % \
                 (self.initial,self.number,consign,cargo,start,end,day,time, tonnage,comcode)
