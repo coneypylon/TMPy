@@ -1,5 +1,5 @@
 import configparser, sys, sqlite3, time
-from helpers import lookuproads, frontpad, clear_screen
+from helpers import lookuproads, frontpad, clear_screen, cleantraces
 
 
 
@@ -7,7 +7,10 @@ def parse_n_route_string(string: str,curs: sqlite3.Cursor,conn: sqlite3.Connecti
     if not embedded and (len(string) < 3 or len(string) > 8): # we accept single-digit car numbers
         return "usage: script.py RINNNNNN"
     elif embedded and (len(string) < 3 or len(string) > 8):
-        return [[]]
+        return [['INVINP']]
+    if embedded: # let's assume we're a kiosk and should clean the DB to make the output sane.
+        cleantraces(curs)
+        conn.commit()
     
     # helpful constants and variables
     rq = string[0]
@@ -39,7 +42,7 @@ def parse_n_route_string(string: str,curs: sqlite3.Cursor,conn: sqlite3.Connecti
     rawcore = curs.fetchall()
     for result in rawcore:
         car = str(result[0]) + str(result[1])
-        if str(result[10]) == 'None' or rq in ['1','3']: # empty, abbreviated
+        if str(result[10]) == 'None' or rq in ['1','3'] or len(outputs[car]) > 1: # empty, abbreviated, or not the first record
             record = '%s%s %s/%s %s%s' % (result[2],result[3],frontpad(result[4],2),frontpad(result[5],4),frontpad(str(result[6]),4),result[7])
         else:
             fullrecord = [result[2],result[3],frontpad(result[4],2),frontpad(result[5],4),frontpad(str(result[6]),4)]

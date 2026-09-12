@@ -1,5 +1,10 @@
 from random import randint
-from datetime import datetime,UTC
+try:
+    from datetime import datetime,UTC
+    dtwork = True
+except ImportError:
+    from datetime import datetime
+    dtwork = False
 import os, sqlite3
 
 
@@ -41,7 +46,10 @@ def getcars(loc,cur: sqlite3.Cursor):
     return outlst
 
 def getdattuple()->tuple[int]:
-    now = datetime.now(UTC)
+    if dtwork:
+        now = datetime.now(UTC)
+    else:
+        now = datetime.utcnow()
     formatted_time = now.strftime(r"%d%H%M")
     return (int(formatted_time[0:2]),int(formatted_time[2:4])) # probably there's another way to do this, but w/e
 
@@ -344,13 +352,13 @@ class trainjournal:
                 lore = 'E'
             
             if aord == 'D':
+                if lore=='L':
+                    fcar.genwaybill(car.consignee,car.onlineorig,car.onlinedest,car.contents,self.dat[2:],self.departure,car.commodity,curs)
                 fcar.gentrace(aord,int(self.fr.number),int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
-                fcar.genwaybill(car.consignee,car.onlineorig,car.onlinedest,car.contents,self.dat[2:],self.departure,car.commodity,curs)
             else:
                 fcar.gentrace(aord,int(self.fr.number),int(self.dat[2:]),int(self.departure),self.trainNumber,lore,curs,conn)
         for car in self.exceptions.keys():
             for exception in self.exceptions[car]:
-                print(exception)
                 initials = exception[1:5]
                 nber = exception[5:11]
                 try:
@@ -362,8 +370,9 @@ class trainjournal:
                     text = exception[11:73]
                     dat = self.dat[2:]
                     tim = self.departure
+                exceptclrq = "DELETE FROM ExceptionFile WHERE Initial = '%s' AND Text = '%s' and Number = %s;" % (initials,text,nber)
+                curs.execute(exceptclrq)
                 exceptq = "INSERT INTO ExceptionFile(Initial,Number,Text,Day,Time) VALUES ('%s',%s,'%s',%s,%s);" % (initials,nber,text,dat,tim)
-                print(exceptq)
                 curs.execute(exceptq)
         conn.commit()
     def __str__(self):
@@ -411,7 +420,7 @@ class FileCar:
         delq = "DELETE FROM Waybillfile WHERE Initial = '%s' AND Number = %s;" % (self.initial, self.number)
         cur.execute(delq)
         self.curdest = 0
-    def genwaybill(self,consign: str,start: int,end: int,cargo: str,day: int,time: int,comcode: str,cur):
+    def genwaybill(self,consign,start,end,cargo,day,time,comcode,cur):
         tonnage = randint(1,20)
         wayq = "INSERT INTO Waybillfile (Initial, Number, Consignee, Contents, Destination, OriginStation, Day, Time, Tonnage, CommodityCode) VALUES ('%s',%s,'%s','%s',%s,%s,%s,%s,%s,%s);" % \
                 (self.initial,self.number,consign,cargo,start,end,day,time, tonnage,comcode)
