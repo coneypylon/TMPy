@@ -60,6 +60,8 @@ def cleantraces(cur: sqlite3.Cursor)->None:
     for row in results:
         delq = "DELETE FROM Tracefile WHERE Initials = '%s' AND Number = %s AND Day = %s AND Time = %s;" % row
         cur.execute(delq)
+        wdelq="DELETE FROM Waybillfile WHERE Initial='%s' AND Number=%s AND Day =%s AND Time=%s;" %row
+        cur.execute(wdelq)
 
 def clear_screen()->None:
     # Check the operating system name
